@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app:rw
+      - ./widget/dist:/app/widget_dist:ro
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  chroma:
+    image: ghcr.io/chroma-core/chroma:latest
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    volumes:
+      - chroma-db:/data
+
+volumes:
+  chroma-db:
