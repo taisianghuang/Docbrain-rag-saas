@@ -1,52 +1,59 @@
 import os
 import io
-import json
 from uuid import uuid4
-from typing import List, Optional
+from typing import List
 
-from fastapi import APIRouter, UploadFile, File, Form, Request
+from fastapi import APIRouter, UploadFile, File, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 
 from pypdf import PdfReader
 
 import chromadb
-from chromadb.config import Settings
+# ChromaDB 0.4+ 不需要舊式的 Settings 設定
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import OpenAIEmbeddings
+# 新版 LangChain Import 路徑
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_openai import OpenAIEmbeddings
 
-import openai
+# 新版 OpenAI Client (v1.0+)
+from openai import AsyncOpenAI
 
 router = APIRouter()
 
-# Initialize Chroma client and embeddings lazily
+# 設定儲存路徑
 CHROMA_DIR = os.environ.get("CHROMA_PERSIST_DIR", "./chroma_db")
+
+# Lazy loading globals
 _chroma_client = None
 _collection = None
 _embeddings = None
 
 
 def get_chroma_collection():
+    """取得 ChromaDB Collection (單例模式)"""
     global _chroma_client, _collection
     if _chroma_client is None:
-        _chroma_client = chromadb.Client(
-            Settings(chroma_db_impl="duckdb+parquet", persist_directory=CHROMA_DIR))
+        # ChromaDB 0.4+ 的新寫法：直接用 PersistentClient
+        _chroma_client = chromadb.PersistentClient(path=CHROMA_DIR)
+    
     if _collection is None:
-        try:
-            _collection = _chroma_client.get_collection(name="documents")
-        except Exception:
-            _collection = _chroma_client.create_collection(name="documents")
+        # 取得或建立集合
+        _collection = _chroma_client.get_or_create_collection(name="documents")
+        
     return _collection
 
 
 def get_embeddings():
+    """取得 OpenAI Embeddings 物件"""
     global _embeddings
     if _embeddings is None:
+        # 使用新版 langchain-openai 套件
         _embeddings = OpenAIEmbeddings()
     return _embeddings
 
 
 def extract_text_from_pdf(file_bytes: bytes) -> str:
+    """從 PDF 提取文字"""
     reader = PdfReader(io.BytesIO(file_bytes))
     text_parts = []
     for page in reader.pages:
@@ -60,13 +67,15 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
 
 @router.post("/ingest")
 async def ingest(files: List[UploadFile] = File(...)):
-    """Accept PDF/TXT files, chunk them, embed and store into ChromaDB."""
+    """接收 PDF/TXT 檔案，切割後存入 ChromaDB。"""
     docs = []
     metadatas = []
 
     for f in files:
         content = await f.read()
         text = ""
+        
+        # 判斷檔案類型
         if f.filename.lower().endswith(".pdf"):
             text = extract_text_from_pdf(content)
         else:
@@ -78,8 +87,11 @@ async def ingest(files: List[UploadFile] = File(...)):
         if not text.strip():
             continue
 
+        # 使用新版 LangChain 的 Splitter
         splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000, chunk_overlap=200)
+            chunk_size=1000, 
+            chunk_overlap=200
+        )
         chunks = splitter.split_text(text)
 
         for idx, c in enumerate(chunks):
@@ -89,77 +101,94 @@ async def ingest(files: List[UploadFile] = File(...)):
     if not docs:
         return JSONResponse({"inserted": 0})
 
+    # 產生向量 (Embeddings)
     embeddings = get_embeddings()
     embs = embeddings.embed_documents(docs)
 
+    # 存入資料庫
     collection = get_chroma_collection()
     ids = [str(uuid4()) for _ in docs]
-    collection.add(documents=docs, metadatas=metadatas,
-                   ids=ids, embeddings=embs)
-    # persist handled by chroma client implementation
+    
+    collection.add(
+        documents=docs, 
+        metadatas=metadatas,
+        ids=ids, 
+        embeddings=embs
+    )
 
     return {"inserted": len(docs)}
 
 
 @router.post("/chat")
 async def chat(request: Request):
-    """Accepts {message, history}. Retrieves context and streams back model output."""
+    """接收 {message, history}，回傳串流回應 (Streaming Response)。"""
     payload = await request.json()
     message = payload.get("message", "")
-    history = payload.get("history", [])
+    # history = payload.get("history", []) # 暫時沒用到 history，未來可加入 Context
 
     if not message:
         return JSONResponse({"error": "message required"}, status_code=400)
 
-    embeddings = get_embeddings()
+    # 1. 搜尋相關文件 (RAG)
     collection = get_chroma_collection()
-
-    # similarity search: use query API
+    context_text = ""
+    
     try:
-        results = collection.query(query_texts=[message], n_results=4, include=[
-                                   "documents", "metadatas"])
-        docs = []
-        if results and len(results.get("documents", [])):
-            hits = results["documents"][0]
-            docs = [h for h in hits if h]
-    except Exception:
-        docs = []
+        # 使用 Embeddings 進行語意搜尋 (Query)
+        embeddings = get_embeddings()
+        query_vec = embeddings.embed_query(message)
+        
+        results = collection.query(
+            query_embeddings=[query_vec],
+            n_results=4,
+            include=["documents"]
+        )
+        
+        if results and results['documents']:
+            # 扁平化 list
+            hits = results['documents'][0]
+            context_text = "\n---\n".join(hits)
+    except Exception as e:
+        print(f"Search Error: {e}")
+        context_text = ""
 
-    context = "\n---\n".join(docs)
-
+    # 2. 準備 Prompt
     system_prompt = (
-        "You are a helpful assistant that answers questions using the provided context. "
-        "If the answer is not contained in the context, say you don't know and offer to help in other ways.\n\nContext:\n" + context
+        "You are a helpful assistant. Answer questions using the provided context only. "
+        "If you don't know, say so.\n\n"
+        f"Context:\n{context_text}"
     )
 
-    # Prepare messages for OpenAI
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": message},
     ]
 
+    # 3. 使用新版 OpenAI Async Client 進行串流
     openai_api_key = os.environ.get("OPENAI_API_KEY")
     if not openai_api_key:
-        return JSONResponse({"error": "OPENAI_API_KEY not configured on server"}, status_code=500)
-    openai.api_key = openai_api_key
+        return JSONResponse({"error": "OPENAI_API_KEY not configured"}, status_code=500)
+
+    # 初始化 Async Client
+    aclient = AsyncOpenAI(api_key=openai_api_key)
 
     async def event_stream():
-        # Use OpenAI streaming to yield tokens as they arrive
         try:
-            # NOTE: openai.ChatCompletion.create with stream True is a blocking generator.
-            # Using the sync generator in an async context is acceptable here because FastAPI
-            # will run the generator in a threadpool. We yield plain text chunks.
-            for chunk in openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=messages, stream=True):
-                if not chunk:
-                    continue
-                choices = chunk.get("choices")
-                if not choices:
-                    continue
-                delta = choices[0].get("delta", {})
-                content = delta.get("content")
+            # 新版 API 呼叫方式 (v1.0+)
+            stream = await aclient.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=messages,
+                stream=True
+            )
+            
+            async for chunk in stream:
+                content = chunk.choices[0].delta.content
                 if content:
                     yield content
+            
+            # 結束時可以傳一個換行確保格式
             yield "\n"
+            
         except Exception as e:
             yield f"[ERROR] {str(e)}"
 
