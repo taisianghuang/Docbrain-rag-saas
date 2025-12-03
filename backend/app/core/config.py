@@ -36,10 +36,10 @@ class PreviewPrefixedSettings(BaseSettings):
     deployments, so they are not prefixed.
     """
 
-    OPENAI_API_KEY: str
-    AWS_KEY: str
-    AWS_SECRET: str
-    POLYGON_IO_API_KEY: str
+    OPENAI_API_KEY: str  # 這個必須要有
+    AWS_KEY: Optional[str] = None
+    AWS_SECRET: Optional[str] = None
+    POLYGON_IO_API_KEY: Optional[str] = None
 
     model_config = model_config
 
@@ -57,9 +57,12 @@ class Settings(PreviewPrefixedSettings):
     RENDER: bool = False
     CODESPACES: bool = False
     CODESPACE_NAME: Optional[str] = None
-    S3_BUCKET_NAME: str
-    S3_ASSET_BUCKET_NAME: str
-    CDN_BASE_URL: str
+
+    # 這些原本也是必填，現在改為 Optional
+    S3_BUCKET_NAME: Optional[str] = None
+    S3_ASSET_BUCKET_NAME: Optional[str] = None
+    CDN_BASE_URL: Optional[str] = None
+
     VECTOR_STORE_TABLE_NAME: str = "pg_vector_store"
     SENTRY_DSN: Optional[str] = None
     RENDER_GIT_COMMIT: Optional[str] = None

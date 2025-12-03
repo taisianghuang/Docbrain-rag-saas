@@ -1,11 +1,26 @@
+# backend/app/api/api.py
 from fastapi import APIRouter
-
-from app.api.endpoints import conversation, health, documents
+from app.api.endpoints import conversation, documents, health
 
 api_router = APIRouter()
+
+# 註冊對話 API (POST /api/conversation/chat)
 api_router.include_router(
-    conversation.router, prefix="/conversation", tags=["conversation"]
+    conversation.router,
+    prefix="/conversation",
+    tags=["conversation"]
 )
+
+# 註冊文件 API (POST /api/document/ingest)
 api_router.include_router(
-    documents.router, prefix="/document", tags=["document"])
-api_router.include_router(health.router, prefix="/health", tags=["health"])
+    documents.router,
+    prefix="/document",
+    tags=["document"]
+)
+
+# 註冊健康檢查
+api_router.include_router(
+    health.router,
+    prefix="/health",
+    tags=["health"]
+)

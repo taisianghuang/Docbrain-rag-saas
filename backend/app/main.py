@@ -11,14 +11,12 @@ from alembic import script
 from alembic.runtime import migration
 from sqlalchemy.engine import create_engine, Engine
 from llama_index.core.node_parser.text.utils import split_by_sentence_tokenizer
-import llama_index.core
 
 from app.api.api import api_router
 from app.db.wait_for_db import check_database_connection
 from app.core.config import settings, AppEnvironment
 from app.loader_io import loader_io_router
 from contextlib import asynccontextmanager
-from app.chat.pg_vector import get_vector_store_singleton, CustomPGVectorStore
 from app.llama_index_settings import _setup_llama_index_settings
 
 logger = logging.getLogger(__name__)
@@ -66,37 +64,26 @@ def __setup_sentry():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # first wait for DB to be connectable
+    # 1. 等待 DB 連線
     await check_database_connection()
+
+    # 2. 檢查 Migration 版本
     cfg = Config("alembic.ini")
-    # Change DB URL to use psycopg2 driver for this specific check
     db_url = settings.DATABASE_URL.replace(
         "postgresql+asyncpg://", "postgresql+psycopg2://"
     )
     cfg.set_main_option("sqlalchemy.url", db_url)
     engine = create_engine(db_url, echo=True)
     if not check_current_head(cfg, engine):
-        raise Exception(
-            "Database is not up to date. Please run `poetry run alembic upgrade head`"
-        )
-    # initialize pg vector store singleton
-    vector_store = await get_vector_store_singleton()
-    vector_store = cast(CustomPGVectorStore, vector_store)
-    await vector_store.run_setup()
+        raise Exception("Database not up to date. Run alembic upgrade head")
 
+    # 3. LlamaIndex 全局設定
     try:
-        # Some setup is required to initialize the llama-index sentence splitter
         split_by_sentence_tokenizer()
     except FileExistsError:
-        # Sometimes seen in deployments, should be benign.
-        logger.info("Tried to re-download NLTK files but already exists.")
-
-    if not settings.RENDER:
-        llama_index.core.set_global_handler("arize_phoenix")
+        pass
 
     yield
-    # This section is run on app shutdown
-    await vector_store.close()
 
 
 app = FastAPI(

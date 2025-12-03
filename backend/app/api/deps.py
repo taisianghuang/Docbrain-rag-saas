@@ -2,13 +2,13 @@
 from typing import AsyncGenerator
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.session import async_session
+from app.db.session import SessionLocal
 from app.services.client import ClientService
 from app.services.ingestion import IngestionService
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    async with async_session() as session:
+    async with SessionLocal() as session:
         yield session
 
 # 新增：Client Service 依賴
