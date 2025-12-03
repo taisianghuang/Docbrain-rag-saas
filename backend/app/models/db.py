@@ -65,9 +65,6 @@ class Document(Base):
     # 狀態: processing, indexed, error
     status = Column(String, default="processing")
 
-    # 定義向量欄位 (這會對應到資料庫的 VECTOR 型別)
-    embedding = Column(Vector(1536), nullable=True)
-
     conversations = relationship(
         "ConversationDocument", back_populates="document")
     client = relationship("Client")  # Back ref

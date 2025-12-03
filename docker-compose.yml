@@ -1,23 +1,22 @@
 version: '3.8'
-services:
-  backend:
-    build: ./backend
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app:rw
-      - ./widget/dist:/app/widget_dist:ro
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-  chroma:
-    image: ghcr.io/chroma-core/chroma:latest
-    restart: unless-stopped
+services:
+  db:
+    image: pgvector/pgvector:pg18
+    container_name: postgres-vector
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: vector_db
     ports:
-      - "8001:8001"
+      - "5432:5432"
     volumes:
-      - chroma-db:/data
+      # 持久化資料庫檔案 (確保重開機資料還在)
+      - pgdata:/var/lib/postgresql
+      
+      # 將本地的 init.sql 掛載到容器的初始化目錄
+      - ./backend/postgresql/init.sql:/docker-entrypoint-initdb.d/init.sql
 
 volumes:
-  chroma-db:
+  pgdata:
