@@ -66,7 +66,7 @@ class IngestionService:
             if not llama_docs:
                 raise ValueError("LlamaParse returned no content.")
 
-            # --- Step 3: Metadata Injection (關鍵！) ---
+            # --- Step 3: Metadata Injection ---
             # 我們要將 PostgreSQL 的 document ID 與 client_id 打入每一個向量切片中
             for doc in llama_docs:
                 doc.metadata["client_id"] = client_id
