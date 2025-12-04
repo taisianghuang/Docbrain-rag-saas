@@ -28,10 +28,6 @@ class Chatbot(Base):
         ARRAY(String), default=list)
 
     # --- AI Configuration ---
-    encrypted_openai_key: Mapped[Optional[str]
-                                 ] = mapped_column(String, nullable=True)
-    encrypted_llama_cloud_key: Mapped[Optional[str]] = mapped_column(
-        String, nullable=True)
     rag_config: Mapped[dict] = mapped_column(
         JSONB, default=lambda: {"mode": "vector", "top_k": 5})
 

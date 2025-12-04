@@ -1,42 +1,42 @@
-# backend/app/services/ingestion.py
 import os
 import shutil
 import tempfile
-from typing import List
+from typing import List, Dict, Any
 from fastapi import UploadFile, HTTPException
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from llama_parse import LlamaParse
-from llama_index.core import Document as LlamaDocument
-from llama_index.core.node_parser import SentenceSplitter
+from llama_index.core import Document as LlamaDocument, StorageContext, VectorStoreIndex
+from llama_index.vector_stores.postgres import PGVectorStore
 
-from app.models.db import Document as DBDocument
-from app.services.vector_store import VectorStoreService, get_vector_service
+from app.models import Document as DBDocument, Chatbot
 from app.core.config import settings
+from app.core.security import decrypt_value
 
 
 class IngestionService:
     def __init__(self, db: AsyncSession):
         self.db = db
-        # 取得全域 Vector Service
-        self.vector_service = get_vector_service()
 
-    async def ingest_file(self, client_id: str, file: UploadFile):
+    async def ingest_file(self, chatbot: Chatbot, file: UploadFile) -> Dict[str, Any]:
         """
-        核心流程：
-        1. DB: 建立 Document 紀錄 (Status: processing)
-        2. LlamaParse: 解析檔案 -> Text
-        3. Logic: 注入 Metadata (client_id, db_document_id)
-        4. VectorStore: 寫入向量
-        5. DB: 更新 Status (indexed / error)
+        SaaS 核心流程：上傳 -> LlamaParse -> 注入 Metadata -> PGVector
+
+        Args:
+            chatbot: 已預先載入 Tenant 資訊的 Chatbot 物件 (via ChatbotService)
+            file: 上傳的檔案物件
         """
 
-        # --- Step 1: 寫入業務資料庫 (PostgreSQL) ---
+        # 1. 寫入業務資料庫 (DBDocument) - 狀態: processing
         # 這樣就算後續處理失敗，使用者也能看到 "Processing Failed" 的紀錄
         db_doc = DBDocument(
-            client_id=client_id,
-            name=file.filename,
-            url=f"local://{file.filename}",  # MVP 暫時存本地，未來可改 S3 URL
+            tenant_id=chatbot.tenant_id,
+            chatbot_id=chatbot.id,
+            filename=file.filename,
+            # MVP 暫時存本地，生產環境建議改傳 S3 並存 S3 URL
+            file_url=f"local://{file.filename}",
+            file_size=file.size,
+            file_type=file.content_type or "application/octet-stream",
             status="processing",
             metadata_map={}
         )
@@ -46,18 +46,30 @@ class IngestionService:
 
         tmp_path = None
         try:
-            # --- Step 2: 準備檔案與解析 (LlamaParse) ---
-            # 將 UploadFile 寫入暫存檔，因為 LlamaParse 需要實體路徑
-            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as tmp:
+            # 2. 準備檔案 (LlamaParse 需要實體路徑)
+            # 將 UploadFile 寫入系統暫存區
+            suffix = os.path.splitext(file.filename)[1]
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
                 shutil.copyfileobj(file.file, tmp)
                 tmp_path = tmp.name
 
-            # 初始化 LlamaParse (需設定 LLAMA_CLOUD_API_KEY)
+            # 3. 決定 API Key
+            # 優先嘗試從 Tenant 取得加密 Key 並解密
+            tenant_llama_key = None
+            if chatbot.tenant and chatbot.tenant.encrypted_llama_cloud_key:
+                tenant_llama_key = decrypt_value(
+                    chatbot.tenant.encrypted_llama_cloud_key)
+
+            if not tenant_llama_key:
+                raise ValueError(
+                    "No LlamaCloud API Key provided for tenant.")
+
+            # 初始化 LlamaParse
             parser = LlamaParse(
-                api_key=os.getenv("LLAMA_CLOUD_API_KEY"),
-                result_type="markdown",  # Markdown 對 RAG 效果較好
+                api_key=tenant_llama_key,
+                result_type="markdown",  # Markdown 結構對 RAG 效果較好
                 verbose=True,
-                language="ch_tra"  # 繁體中文優化
+                language="ch_tra"        # 繁體中文優化
             )
 
             # 執行解析 (這是最耗時的步驟)
@@ -66,21 +78,40 @@ class IngestionService:
             if not llama_docs:
                 raise ValueError("LlamaParse returned no content.")
 
-            # --- Step 3: Metadata Injection ---
-            # 我們要將 PostgreSQL 的 document ID 與 client_id 打入每一個向量切片中
+            # 4. Metadata Injection (SaaS 安全性關鍵!)
+            # 我們要將 chatbot_id 與 document_id 打入每一個向量切片中
+            # 這讓後續檢索時可以進行精確的 Metadata Filtering
             for doc in llama_docs:
-                doc.metadata["client_id"] = client_id
-                doc.metadata["document_id"] = str(db_doc.id)  # 關聯回 DB 表
+                doc.metadata["chatbot_id"] = str(chatbot.id)
+                doc.metadata["document_id"] = str(db_doc.id)
                 doc.metadata["filename"] = file.filename
+                doc.metadata["tenant_id"] = str(chatbot.tenant_id)
 
-            # --- Step 4: 寫入向量資料庫 (PGVector) ---
-            # 使用我們在 Step 3 建立的 index 來插入節點
-            # 這裡會自動切塊 (Chunking) 並呼叫 OpenAI Embedding API
-            self.vector_service.index.insert_documents(llama_docs)
+            # 5. 寫入向量資料庫 (PGVector)
+            # 動態連接 PGVector，確保使用正確的 Table ("data_embeddings")
+            vector_store = PGVectorStore.from_params(
+                database=settings.POSTGRES_DB,
+                host=settings.POSTGRES_HOST,
+                password=settings.POSTGRES_PASSWORD,
+                port=settings.POSTGRES_PORT,
+                user=settings.POSTGRES_USER,
+                table_name="data_embeddings",  # 對應 models/document.py 的 LlamaIndexStore
+                embed_dim=1536,               # OpenAI embedding dimension
+            )
 
-            # --- Step 5: 更新 DB 狀態為成功 ---
+            storage_context = StorageContext.from_defaults(
+                vector_store=vector_store)
+
+            # 建立 Index (這會觸發 Embedding API 並寫入 DB)
+            VectorStoreIndex.from_documents(
+                llama_docs,
+                storage_context=storage_context,
+                show_progress=True
+            )
+
+            # 6. 更新 DB 狀態為成功
             db_doc.status = "indexed"
-            # 順便存解析後的結果摘要
+            # 順便存解析後的結果摘要 (例如：解析出了幾頁、幾個區塊)
             db_doc.metadata_map = {"parsed_chunks": len(llama_docs)}
             await self.db.commit()
 
@@ -91,13 +122,15 @@ class IngestionService:
             }
 
         except Exception as e:
-            # 錯誤處理：更新 DB 狀態為 Error
+            # 錯誤處理：更新 DB 狀態為 Error，並記錄錯誤訊息
             print(f"Ingestion Error: {e}")
             db_doc.status = "error"
-            # db_doc.error_message = str(e) # 如果 Model 有開這個欄位
+            db_doc.error_message = str(e)
             await self.db.commit()
             raise HTTPException(
-                status_code=500, detail=f"Ingestion failed: {str(e)}")
+                status_code=500,
+                detail=f"Ingestion failed: {str(e)}"
+            )
 
         finally:
             # 清理暫存檔

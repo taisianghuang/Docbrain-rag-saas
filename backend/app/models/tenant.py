@@ -1,4 +1,4 @@
-from typing import List, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
@@ -17,6 +17,12 @@ class Tenant(Base):
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+
+    # --- AI Configuration ---
+    encrypted_openai_key: Mapped[Optional[str]
+                                 ] = mapped_column(String, nullable=True)
+    encrypted_llama_cloud_key: Mapped[Optional[str]] = mapped_column(
+        String, nullable=True)
 
     # 關聯：使用字串 "Chatbot" 而非類別物件，SQLAlchemy 會自動延遲解析
     chatbots: Mapped[List["Chatbot"]] = relationship(

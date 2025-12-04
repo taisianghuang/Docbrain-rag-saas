@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, s
 from typing import Any
 from app.api import deps
 from app.services.ingestion import IngestionService
-from app.services.client import ClientService
+from app.services.chatbot import ChatbotService  # 改用 ChatbotService
 from app.schemas import IngestResponse
 
 router = APIRouter()
@@ -11,26 +11,27 @@ router = APIRouter()
 
 @router.post("/ingest", response_model=IngestResponse)
 async def ingest_document(
-    client_id: str = Form(...),
+    chatbot_id: str = Form(...),  # 前端 Dashboard 傳過來的 ID
     file: UploadFile = File(...),
     ingestion_service: IngestionService = Depends(deps.get_ingestion_service),
-    client_service: ClientService = Depends(deps.get_client_service),
+    chatbot_service: ChatbotService = Depends(
+        deps.get_chatbot_service),  # 注入 ChatbotService
 ) -> Any:
     """
     SaaS 核心功能：上傳文件並進行 RAG 索引。
-    必須提供 client_id 以確保資料隔離。
     """
-    # 1. 驗證租戶是否存在
-    client = await client_service.get_client_by_id(client_id)
-    if not client:
+    # 1. 驗證 Chatbot 是否存在 (且預先載入 Tenant 供 Key 使用)
+    chatbot = await chatbot_service.get_chatbot_by_id(chatbot_id)
+
+    if not chatbot:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Client not found"
+            detail="Chatbot not found"
         )
 
-    # 2. 呼叫 Service 進行處理 (LlamaParse + PGVector)
+    # 2. 呼叫 Service 進行處理 (IngestionService 已經寫好會處理 Key 和 Metadata)
     try:
-        result = await ingestion_service.ingest_file(client_id, file)
+        result = await ingestion_service.ingest_file(chatbot, file)
         return IngestResponse(**result)
     except Exception as e:
         raise HTTPException(
