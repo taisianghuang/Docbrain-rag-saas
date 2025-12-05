@@ -64,7 +64,7 @@ class IngestionService:
 
             if not tenant_llama_key:
                 raise ValueError(
-                    "No LlamaCloud API Key provided for tenant.")
+                    "Tenant LlamaCloud Key is missing. Ingestion cannot proceed.")
 
             # 初始化 LlamaParse
             parser = LlamaParse(
