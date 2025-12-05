@@ -7,6 +7,8 @@ from app.services.chatbot import ChatbotService
 from app.services.ingestion import IngestionService
 from app.services.chat import ChatService
 from app.services.tenant import TenantService
+from app.services.account import AccountService
+from app.services.auth import AuthService
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -28,3 +30,11 @@ def get_chat_service(db: AsyncSession = Depends(get_db)) -> ChatService:
 
 def get_tenant_service(db: AsyncSession = Depends(get_db)) -> TenantService:
     return TenantService(db)
+
+
+def get_account_service(db: AsyncSession = Depends(get_db)) -> AccountService:
+    return AccountService(db)
+
+
+def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
+    return AuthService(db)

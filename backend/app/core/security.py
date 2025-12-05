@@ -1,5 +1,8 @@
 # backend/app/core/security.py
 import os
+from typing import Any, Union
+from datetime import datetime, timedelta
+from passlib.context import CryptContext
 from cryptography.fernet import Fernet
 
 # 建議在 .env 設定 ENCRYPTION_KEY，若無則每次重啟會隨機生成 (導致舊資料無法解密)
@@ -22,3 +25,14 @@ def decrypt_value(encrypted_value: str) -> str:
     except Exception:
         # 解密失敗 (可能是 Key 換了或是資料損毀)
         return None
+
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)

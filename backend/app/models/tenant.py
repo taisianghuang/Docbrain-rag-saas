@@ -7,6 +7,7 @@ from app.models.base import Base
 if TYPE_CHECKING:
     from app.models.chatbot import Chatbot
     from app.models.document import Document
+    from app.models.account import Account
 
 
 class Tenant(Base):
@@ -30,4 +31,9 @@ class Tenant(Base):
     )
     documents: Mapped[List["Document"]] = relationship(
         "Document", back_populates="tenant", cascade="all, delete-orphan"
+    )
+
+    # 關聯：使用字串 "Account"
+    accounts: Mapped[List["Account"]] = relationship(
+        "Account", back_populates="tenant", cascade="all, delete-orphan"
     )
