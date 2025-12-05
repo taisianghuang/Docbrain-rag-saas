@@ -1,6 +1,6 @@
 # backend/app/api/api.py
 from fastapi import APIRouter
-from app.api.endpoints import conversation, documents, health
+from app.api.endpoints import conversation, documents, health, admin
 
 api_router = APIRouter()
 
@@ -23,4 +23,11 @@ api_router.include_router(
     health.router,
     prefix="/health",
     tags=["health"]
+)
+
+# 註冊 Admin API
+api_router.include_router(
+    admin.router,
+    prefix="/admin",
+    tags=["admin"]
 )

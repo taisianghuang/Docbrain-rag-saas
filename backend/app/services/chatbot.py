@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.models import Chatbot, Tenant
+from app.schemas import ChatbotCreate
 
 
 class ChatbotService:
@@ -39,13 +40,24 @@ class ChatbotService:
         chatbot = result.scalar_one_or_none()
         return chatbot
 
-    async def create_chatbot(self, tenant_id: str, name: str) -> Chatbot:
-        """建立新機器人"""
+    async def create_chatbot(self, data: ChatbotCreate) -> Chatbot:
+        """從 Pydantic Schema 建立機器人"""
+
+        # 組合 Widget Config JSON
+        widget_config_json = {
+            "title": data.widget_title,
+            "primaryColor": data.primary_color,
+            "welcomeMessage": data.welcome_message
+        }
+
         new_bot = Chatbot(
-            tenant_id=tenant_id,
-            name=name,
-            rag_config={"mode": "vector", "top_k": 5}
+            tenant_id=data.tenant_id,
+            name=data.name,
+            widget_config=widget_config_json,
+            rag_config={"mode": "vector", "top_k": 5},
+            # public_id 由 Model 的 default function 自動生成
         )
+
         self.db.add(new_bot)
         await self.db.commit()
         await self.db.refresh(new_bot)

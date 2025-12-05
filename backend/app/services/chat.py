@@ -1,20 +1,16 @@
 # backend/app/services/chat.py
 import os
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload
-from sqlalchemy.engine import make_url
 
-from llama_index.core import VectorStoreIndex, StorageContext, Settings
-from llama_index.core.memory import ChatMemoryBuffer
+from llama_index.core import VectorStoreIndex
 from llama_index.core.chat_engine import CondensePlusContextChatEngine
-from llama_index.core.llms import ChatMessage, MessageRole as LlamaRole
 from llama_index.core.vector_stores import MetadataFilters, ExactMatchFilter
-from llama_index.vector_stores.postgres import PGVectorStore
 from llama_index.llms.openai import OpenAI
+from llama_index.core.postprocessor import SimilarityPostprocessor
 
-from app.models import Chatbot, Conversation, Message, MessageRole
+from app.models import Conversation, Message, MessageRole
 from app.core.config import settings
 from app.core.security import decrypt_value
 from app.services.chatbot import ChatbotService
@@ -38,8 +34,20 @@ class ChatService:
         if not chatbot:
             raise ValueError("Invalid Chatbot Public ID")
 
-        # 2. 處理對話 Session (Conversation)
-        # 如果前端沒傳 conversation_id，或是傳了但在 DB 找不到，就開一個新的
+        # 2. 讀取 RAG Config (SaaS 核心邏輯)
+        # 預設值: mode="vector", top_k=5, temperature=0.1
+        rag_config = chatbot.rag_config or {}
+        strategy_mode = rag_config.get("mode", "vector")
+        top_k = int(rag_config.get("top_k", 5))
+        temperature = float(rag_config.get("temperature", 0.1))
+
+        # 系統提示詞 (Persona)
+        system_prompt = (
+            chatbot.widget_config.get("system_prompt") or
+            "You are a helpful AI assistant. Answer based on the context provided."
+        )
+
+        # 3. 處理對話 Session (Conversation)
         conversation = None
         if conversation_id:
             query = select(Conversation).where(
@@ -56,7 +64,7 @@ class ChatService:
             await self.db.commit()
             await self.db.refresh(conversation)
 
-        # 3. 儲存 User Message 到 DB
+        # 4. 儲存 User Message 到 DB
         user_msg_record = Message(
             conversation_id=conversation.id,
             role=MessageRole.USER,
@@ -65,57 +73,76 @@ class ChatService:
         self.db.add(user_msg_record)
         await self.db.commit()
 
-        # 4. 準備 LlamaIndex 環境
-        # 4.1 決定 API Key (Tenant > System)
+        # 5. 準備 LLM 環境
+        # 決定 API Key (Tenant)
         tenant_openai_key = None
         if chatbot.tenant and chatbot.tenant.encrypted_openai_key:
             tenant_openai_key = decrypt_value(
                 chatbot.tenant.encrypted_openai_key)
 
-        # 若 Tenant 沒設定，則返回錯誤
+        # 沒有設定 tenant_openai_key 報錯
         if not tenant_openai_key:
-            raise ValueError("Tenant OpenAI API Key is not configured.")
+            raise ValueError("No OpenAI API key configured for tenant")
 
-        # 設定 LLM (GPT-3.5/4)
+        # 設定 LLM (使用動態 Temperature)
         llm = OpenAI(
             model=settings.OPENAI_CHAT_LLM_NAME or "gpt-4o-mini",
             api_key=tenant_openai_key,
-            temperature=0.1
+            temperature=temperature
         )
 
-        # 4.2 連接 PGVector
+        # 6. 連接 Vector Store (使用工廠模式)
         vector_store = get_vector_store()
-        # 注意: 這裡的 vector_store 已經在 rag_factory 處理好連線參數與 Table 名稱
 
-        # 4.3 建立 Index View
-        index = VectorStoreIndex.from_vector_store(
-            vector_store=vector_store,
-            # 注意: 這裡不直接傳 embed_model，通常依賴全域 Settings 或在此處重新初始化 OpenAIEmbedding
-        )
+        # 建立 Index View
+        index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
 
-        # 5. RAG 核心：Metadata Filters (SaaS 隔離關鍵!)
-        # 強制只檢索該 chatbot_id 的向量
+        # 7. Metadata Filters (強制隔離)
         filters = MetadataFilters(
             filters=[ExactMatchFilter(key="chatbot_id", value=str(chatbot.id))]
         )
 
-        # 6. 建構 Chat Engine
-        # 使用 CondensePlusContext 模式：會先將對話歷史壓縮成一個獨立 Query，再檢索
-        chat_engine = index.as_chat_engine(
-            chat_mode="condense_plus_context",
-            llm=llm,
-            filters=filters,
-            verbose=True,
-            # 這裡可以載入歷史訊息給 LLM 當 Context，目前我們先給空的，
-            # 讓它專注於回答當前問題 (Stateless REST API pattern)，
-            # 若需多輪對話記憶，需將 DB 中的 Messages 轉為 LlamaIndex ChatMessage 傳入
-        )
+        # 8. 策略配置 (RAG Strategy Implementation)
+        # 這裡根據 rag_config 的不同，配置不同的 Retriever 參數
 
-        # 執行 RAG 查詢
+        chat_engine_kwargs = {
+            # 這是最適合 Chatbot 的模式 (會改寫 Query)
+            "chat_mode": "condense_plus_context",
+            "llm": llm,
+            "filters": filters,
+            "system_prompt": system_prompt,
+            "verbose": True,
+        }
+
+        # --- Strategy Logic ---
+        if strategy_mode == "fast":
+            # 快速模式：減少檢索量，只取高信心分數的
+            chat_engine_kwargs["similarity_top_k"] = 3
+            chat_engine_kwargs["node_postprocessors"] = [
+                SimilarityPostprocessor(similarity_cutoff=0.80)
+            ]
+
+        elif strategy_mode == "precise":
+            # 精準模式：檢索更多內容，提供更豐富 Context
+            # (未來可在這裡加入 Reranker)
+            chat_engine_kwargs["similarity_top_k"] = 10
+            chat_engine_kwargs["node_postprocessors"] = [
+                SimilarityPostprocessor(similarity_cutoff=0.70)
+            ]
+
+        else:  # "balanced" or "vector" (Default)
+            chat_engine_kwargs["similarity_top_k"] = top_k
+            # 不特別設定 Postprocessor，直接使用原始 top_k
+        # ----------------------
+
+        # 9. 建構 Chat Engine
+        chat_engine = index.as_chat_engine(**chat_engine_kwargs)
+
+        # 10. 執行查詢
         response = await chat_engine.achat(user_query)
         response_text = str(response)
 
-        # 7. 整理引用來源 (Citations)
+        # 11. 整理引用來源
         source_nodes = []
         if response.source_nodes:
             for node in response.source_nodes:
@@ -123,16 +150,16 @@ class ChatService:
                     "document_id": node.metadata.get("document_id"),
                     "filename": node.metadata.get("filename"),
                     "score": node.score,
-                    "text": node.get_content()[:200] + "..."  # 摘要
+                    # 避免內容太長塞爆 DB
+                    "text": (node.get_content()[:200] + "...") if node.get_content() else ""
                 })
 
-        # 8. 儲存 Assistant Message 到 DB
+        # 12. 儲存 Assistant Message
         ai_msg_record = Message(
             conversation_id=conversation.id,
             role=MessageRole.ASSISTANT,
             content=response_text,
             sources=source_nodes,
-            # tokens_used 可以從 response.raw 取得，暫時略過
         )
         self.db.add(ai_msg_record)
         await self.db.commit()
@@ -140,5 +167,5 @@ class ChatService:
         return {
             "response": response_text,
             "conversation_id": str(conversation.id),
-            "source_nodes": [s['filename'] for s in source_nodes]  # 簡單回傳檔名列表
+            "source_nodes": [s['filename'] for s in source_nodes]
         }

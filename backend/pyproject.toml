@@ -16,6 +16,7 @@ dependencies = [
     "llama-index>=0.14.8",
     "llama-index-core>=0.14.8",
     "llama-index-llms-openai>=0.6.9",
+    "llama-index-postprocessor-flag-embedding-reranker>=0.4.1",
     "llama-index-vector-stores-postgres>=0.7.1",
     "openai>=0.29.0",
     "pgvector>=0.4.1",

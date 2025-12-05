@@ -6,6 +6,7 @@ from app.db.session import SessionLocal
 from app.services.chatbot import ChatbotService
 from app.services.ingestion import IngestionService
 from app.services.chat import ChatService
+from app.services.tenant import TenantService
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -23,3 +24,7 @@ def get_ingestion_service(db: AsyncSession = Depends(get_db)) -> IngestionServic
 
 def get_chat_service(db: AsyncSession = Depends(get_db)) -> ChatService:
     return ChatService(db)
+
+
+def get_tenant_service(db: AsyncSession = Depends(get_db)) -> TenantService:
+    return TenantService(db)
