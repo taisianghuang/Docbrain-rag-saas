@@ -2,6 +2,7 @@
 import os
 import shutil
 import tempfile
+import aiofiles
 from typing import List
 from fastapi import UploadFile, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,7 +35,26 @@ class IngestionService:
 
         tmp_path = None
         try:
-            # 2. 準備 Key (需要 LlamaCloud Key 解析 PDF，也可能需要 OpenAI Key 做語意切分)
+            # 2. 準備實體檔案 (Async I/O)
+            # LlamaParse 需要讀取磁碟上的檔案路徑
+
+            # 使用 mkstemp 安全地建立暫存檔路徑 (這是 OS 層級操作，極快，不會阻塞)
+            suffix = os.path.splitext(file.filename)[1]
+            fd, tmp_path = tempfile.mkstemp(suffix=suffix)
+
+            # 立即關閉這個 file descriptor，因為我們要用 aiofiles 重新開啟它
+            os.close(fd)
+
+            # 使用 aiofiles 非同步寫入，避免阻塞 Event Loop
+            async with aiofiles.open(tmp_path, 'wb') as out_file:
+                # 分塊讀取與寫入 (1MB chunk)，避免大檔案吃光記憶體
+                while content := await file.read(1024 * 1024):
+                    await out_file.write(content)
+
+            # 重置檔案指標 (好習慣，以防後續還有其他邏輯要讀取 file)
+            await file.seek(0)
+
+            # 3. 準備 Key (需要 LlamaCloud Key 解析 PDF，也可能需要 OpenAI Key 做語意切分)
             tenant_llama_key = None
             tenant_openai_key = None  # <--- 新增：準備 OpenAI Key
 
@@ -57,13 +77,13 @@ class IngestionService:
                 raise ValueError(
                     "Tenant OpenAI Key is missing. Please configure it in Tenant settings.")
 
-            # 3. 準備檔案 (保持不變)
+            # 4. 準備檔案 (保持不變)
             suffix = os.path.splitext(file.filename)[1]
             with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
                 shutil.copyfileobj(file.file, tmp)
                 tmp_path = tmp.name
 
-            # 4. LlamaParse 解析 (PDF -> Markdown Docs)
+            # 5. LlamaParse 解析 (PDF -> Markdown Docs)
             parser = LlamaParse(
                 api_key=parse_api_key,
                 result_type="markdown",
@@ -75,7 +95,7 @@ class IngestionService:
             if not llama_docs:
                 raise ValueError("LlamaParse returned no content.")
 
-            # --- 5. [NEW] 使用策略模組進行 Chunking ---
+            # --- 6. 使用策略模組進行 Chunking ---
             rag_config = chatbot.rag_config or {}
 
             nodes = get_nodes_from_strategy(
@@ -84,7 +104,7 @@ class IngestionService:
                 openai_api_key=embedding_api_key  # 傳入 Key 以備語意切分使用
             )
 
-            # 6. Metadata Injection (Node Level)
+            # 7. Metadata Injection (Node Level)
             # 這裡注入的是「業務邏輯」ID，所以還是在 Service 層做比較合適
             for node in nodes:
                 node.metadata["chatbot_id"] = str(chatbot.id)
@@ -97,7 +117,7 @@ class IngestionService:
                 node.excluded_embed_metadata_keys = [
                     "chatbot_id", "document_id", "window", "original_text"]
 
-            # 7. 寫入向量資料庫 (使用工廠)
+            # 8. 寫入向量資料庫 (使用工廠)
             vector_store = get_vector_store()
             storage_context = StorageContext.from_defaults(
                 vector_store=vector_store)
@@ -109,7 +129,7 @@ class IngestionService:
                 show_progress=True
             )
 
-            # 8. 更新 DB 狀態
+            # 9. 更新 DB 狀態
             db_doc.status = "indexed"
             db_doc.metadata_map = {
                 "parsed_chunks": len(nodes),
