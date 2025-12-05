@@ -15,9 +15,7 @@ from llama_index.core.node_parser.text.utils import split_by_sentence_tokenizer
 from app.api.api import api_router
 from app.db.wait_for_db import check_database_connection
 from app.core.config import settings, AppEnvironment
-from app.loader_io import loader_io_router
 from contextlib import asynccontextmanager
-from app.llama_index_settings import _setup_llama_index_settings
 
 logger = logging.getLogger(__name__)
 
@@ -77,12 +75,6 @@ async def lifespan(app: FastAPI):
     if not check_current_head(cfg, engine):
         raise Exception("Database not up to date. Run alembic upgrade head")
 
-    # 3. LlamaIndex 全局設定
-    try:
-        split_by_sentence_tokenizer()
-    except FileExistsError:
-        pass
-
     yield
 
 
@@ -111,14 +103,12 @@ if settings.BACKEND_CORS_ORIGINS:
     )
 
 app.include_router(api_router, prefix=settings.API_PREFIX)
-app.mount(f"/{settings.LOADER_IO_VERIFICATION_STR}", loader_io_router)
 
 
 def start():
     print("Running in AppEnvironment: " + settings.ENVIRONMENT.value)
     __setup_logging(settings.LOG_LEVEL)
     __setup_sentry()
-    _setup_llama_index_settings()
     """Launched with `poetry run start` at root level"""
     if settings.RENDER:
         # on render.com deployments, run migrations

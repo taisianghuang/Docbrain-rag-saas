@@ -65,7 +65,6 @@ class Settings(PreviewPrefixedSettings):
     VECTOR_STORE_TABLE_NAME: str = "pg_vector_store"
     SENTRY_DSN: Optional[str] = None
     RENDER_GIT_COMMIT: Optional[str] = None
-    LOADER_IO_VERIFICATION_STR: str = "loaderio-e51043c635e0f4656473d3570ae5d9ec"
     SEC_EDGAR_COMPANY_NAME: str = "YourOrgName"
     SEC_EDGAR_EMAIL: EmailStr = "you@example.com"
     OPENAI_CHAT_LLM_NAME: str = "gpt-4o-mini"
