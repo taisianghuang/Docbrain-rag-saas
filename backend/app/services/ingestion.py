@@ -13,6 +13,8 @@ from app.models import Document as DBDocument, Chatbot
 from app.core.config import settings
 from app.core.security import decrypt_value
 
+from app.core.rag_factory import get_vector_store
+
 
 class IngestionService:
     def __init__(self, db: AsyncSession):
@@ -89,15 +91,9 @@ class IngestionService:
 
             # 5. 寫入向量資料庫 (PGVector)
             # 動態連接 PGVector，確保使用正確的 Table ("data_embeddings")
-            vector_store = PGVectorStore.from_params(
-                database=settings.POSTGRES_DB,
-                host=settings.POSTGRES_HOST,
-                password=settings.POSTGRES_PASSWORD,
-                port=settings.POSTGRES_PORT,
-                user=settings.POSTGRES_USER,
-                table_name="data_embeddings",  # 對應 models/document.py 的 LlamaIndexStore
-                embed_dim=1536,               # OpenAI embedding dimension
-            )
+            # 取得 Vector Store
+            vector_store = get_vector_store()
+            # 注意: 這裡的 vector_store 已經在 rag_factory 處理好連線參數與 Table 名稱
 
             storage_context = StorageContext.from_defaults(
                 vector_store=vector_store)
