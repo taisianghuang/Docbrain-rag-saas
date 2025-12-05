@@ -2,9 +2,16 @@
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from typing import Optional
 from app.models import Tenant, Account, Chatbot
-from app.schemas import SignupRequest
+from app.schemas import TokenPayload, SignupRequest
 from app.core.security import get_password_hash, encrypt_value
+from app.core.security import verify_password, create_access_token
+from app.core.config import settings
+from app.models import Account
+from jose import jwt, JWTError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 
 class AuthService:
@@ -78,3 +85,63 @@ class AuthService:
             "email": new_account.email,
             "company_name": new_tenant.name
         }
+
+
+async def authenticate(self, email: str, password: str) -> Optional[dict]:
+    """
+    驗證使用者登入
+    回傳 Token 物件或是 None
+    """
+    # 1. 找帳號
+    query = select(Account).where(Account.email == email)
+    result = await self.db.execute(query)
+    account = result.scalar_one_or_none()
+
+    # 2. 驗證
+    if not account:
+        return None
+    if not verify_password(password, account.hashed_password):
+        return None
+
+    # 3. 登入成功，生成 Token
+    # 我們將 Account ID 放入 Token 的 sub (Subject) 欄位
+    access_token = create_access_token(subject=account.id)
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        # 可以順便回傳使用者基本資料給前端
+        "user": {
+            "email": account.email,
+            "full_name": account.full_name,
+            "tenant_id": account.tenant_id
+        }
+    }
+
+
+async def get_active_user_by_token(self, token: str) -> Account:
+    """
+    解析 Token 並取得活躍用戶。
+    若失敗則拋出具體的 ValueError，讓上層 (deps) 決定如何處理 HTTP 回應。
+    """
+    try:
+        # 1. 解碼 JWT
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        token_data = TokenPayload(**payload)
+    except (JWTError, AttributeError):
+        raise ValueError("Could not validate credentials")
+
+    # 2. 查詢 DB
+    query = select(Account).where(Account.id == token_data.sub)
+    result = await self.db.execute(query)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise ValueError("User not found")
+
+    if not user.is_active:
+        raise ValueError("Inactive user")
+
+    return user

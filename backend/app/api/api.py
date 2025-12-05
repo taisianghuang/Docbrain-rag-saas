@@ -1,6 +1,6 @@
 # backend/app/api/api.py
 from fastapi import APIRouter
-from app.api.endpoints import conversation, documents, health, admin, auth
+from app.api.endpoints import conversation, documents, health, auth
 
 api_router = APIRouter()
 

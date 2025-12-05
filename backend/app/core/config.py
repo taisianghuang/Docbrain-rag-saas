@@ -36,7 +36,6 @@ class PreviewPrefixedSettings(BaseSettings):
     deployments, so they are not prefixed.
     """
 
-    OPENAI_API_KEY: str  # 這個必須要有
     AWS_KEY: Optional[str] = None
     AWS_SECRET: Optional[str] = None
     POLYGON_IO_API_KEY: Optional[str] = None
@@ -49,7 +48,7 @@ class Settings(PreviewPrefixedSettings):
     Application settings.
     """
 
-    PROJECT_NAME: str = "llama_app"
+    PROJECT_NAME: str = "docbrain-rag-saas"
     API_PREFIX: str = "/api"
     DATABASE_URL: str
     LOG_LEVEL: str = "DEBUG"
@@ -70,6 +69,11 @@ class Settings(PreviewPrefixedSettings):
     SEC_EDGAR_COMPANY_NAME: str = "YourOrgName"
     SEC_EDGAR_EMAIL: EmailStr = "you@example.com"
     OPENAI_CHAT_LLM_NAME: str = "gpt-4o-mini"
+
+    # JWT 設定
+    SECRET_KEY: str = "CHANGE_THIS_TO_A_STRONG_SECRET_KEY"  # 生產環境請務必修改！
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # Token 有效期 (例如 8 天)
 
     # BACKEND_CORS_ORIGINS is a JSON-formatted list of origins
     # e.g: '["http://localhost", "http://localhost:4200", "http://localhost:3000", \
@@ -159,4 +163,3 @@ class Settings(PreviewPrefixedSettings):
 
 
 settings = Settings()
-os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY

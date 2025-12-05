@@ -47,15 +47,15 @@ class IngestionService:
                         chatbot.tenant.encrypted_openai_key)
 
             # Key Fallback 邏輯
-            parse_api_key = tenant_llama_key or os.getenv(
-                "LLAMA_CLOUD_API_KEY")
-            embedding_api_key = tenant_openai_key or os.getenv(
-                "OPENAI_API_KEY")
+            parse_api_key = tenant_llama_key
+            embedding_api_key = tenant_openai_key
 
             if not parse_api_key:
-                raise ValueError("LlamaCloud API Key is missing.")
+                raise ValueError(
+                    "Tenant LlamaCloud Key is missing. Please configure it in Tenant settings.")
             if not embedding_api_key:
-                raise ValueError("OpenAI API Key is missing.")
+                raise ValueError(
+                    "Tenant OpenAI Key is missing. Please configure it in Tenant settings.")
 
             # 3. 準備檔案 (保持不變)
             suffix = os.path.splitext(file.filename)[1]

@@ -1,6 +1,9 @@
 # backend/app/api/endpoints/auth.py
+from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from app.api import deps
+from app.schemas import SignupRequest, SignupResponse, Token
 from app.schemas import SignupRequest, SignupResponse
 from app.services.auth import AuthService
 
@@ -30,3 +33,29 @@ async def register(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Registration failed"
         )
+
+
+@router.post("/login", response_model=Token)
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    auth_service: AuthService = Depends(deps.get_auth_service)
+) -> Any:
+    """
+    OAuth2 相容登入接口
+    username: 請填入 email
+    password: 密碼
+    """
+    # 注意: OAuth2 spec 規定欄位名稱是 username，但我們邏輯是傳 email
+    result = await auth_service.authenticate(
+        email=form_data.username,
+        password=form_data.password
+    )
+
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return result
