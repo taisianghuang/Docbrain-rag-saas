@@ -26,6 +26,27 @@ class RAGStrategy(str, Enum):
     PARENT_CHILD = "parent_child"       # TODO::父子索引 (需配合特定 Ingestion)
 
 
+def determine_top_k(rag_config: dict) -> int:
+    """
+    根據使用者建議的表格邏輯，決定第一階段檢索數量 (Coarse Top-K)。
+
+    邏輯：
+    1. 若 config 有指定 'top_k_coarse'，優先使用。
+    2. 若無，則讀取 'db_scale' (small/medium/large) 來決定預設值。
+    """
+    if "top_k_coarse" in rag_config:
+        return int(rag_config["top_k_coarse"])
+
+    scale = rag_config.get("db_scale", "small")  # 預設小型
+
+    if scale == 'medium':
+        return 30  # 建議: 30~50
+    elif scale == 'large':
+        return 50  # 建議: 50~100
+    else:  # small
+        return 15  # 建議: 10~20
+
+
 def create_chat_engine(
     index: VectorStoreIndex,
     llm: LLM,
@@ -37,9 +58,9 @@ def create_chat_engine(
     RAG 策略工廠：根據 rag_config 決定檢索與排序方式
     """
     strategy = rag_config.get("mode", RAGStrategy.VECTOR)
-    top_k_coarse = int(rag_config.get("top_k_coarse", 50))  # 第一階段粗排 (預設 50)
-    top_k_fine = int(rag_config.get("top_k", 5))           # 第二階段精排 (給 LLM 的)
-    rerank_enabled = rag_config.get("rerank", False)       # 是否啟用 Reranker
+    top_k_coarse = determine_top_k(rag_config)            # 第一階段粗排
+    top_k_fine = int(rag_config.get("top_k", 5))          # 第二階段精排
+    rerank_enabled = rag_config.get("rerank", False)      # 是否啟用 Reranker
 
     retriever = None
     node_postprocessors = []
