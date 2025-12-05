@@ -3,6 +3,9 @@ from sqlalchemy import Column, DateTime, UUID
 from sqlalchemy.sql import func
 from sqlalchemy.ext.declarative import as_declarative, declared_attr
 
+# --- 新增常數定義 ---
+CASCADE_ALL_DELETE = "all, delete-orphan"
+
 
 @as_declarative()
 class Base:

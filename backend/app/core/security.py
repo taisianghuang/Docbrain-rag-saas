@@ -1,7 +1,7 @@
 # backend/app/core/security.py
 import os
 from typing import Any, Union
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 from cryptography.fernet import Fernet
 from jose import jwt
@@ -44,10 +44,12 @@ def get_password_hash(password: str) -> str:
 
 def create_access_token(subject: Union[str, Any], expires_delta: timedelta = None) -> str:
     """建立 JWT Access Token"""
+    now = datetime.now(timezone.utc)
+
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = now + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
     # subject 通常放 user_id
     to_encode = {"exp": expire, "sub": str(subject)}
