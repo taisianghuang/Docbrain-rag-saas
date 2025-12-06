@@ -10,9 +10,10 @@ services:
       # - ./widget/dist:/app/widget_dist:ro
       - /app/.venv
     environment:
-      # API Keys
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - LLAMA_CLOUD_API_KEY=${LLAMA_CLOUD_API_KEY}
+      # JWT Config 
+      - SECRET_KEY=${SECRET_KEY}
+      - ALGORITHM=${ALGORITHM}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
       
       # Database URL (Constructed dynamically from env vars)
       # 格式: postgresql+asyncpg://user:password@host:port/db_name

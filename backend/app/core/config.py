@@ -70,7 +70,7 @@ class Settings(PreviewPrefixedSettings):
     OPENAI_CHAT_LLM_NAME: str = "gpt-4o-mini"
 
     # JWT 設定
-    SECRET_KEY: str = "CHANGE_THIS_TO_A_STRONG_SECRET_KEY"  # 生產環境請務必修改！
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # Token 有效期 (例如 8 天)
 
