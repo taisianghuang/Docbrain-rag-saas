@@ -84,3 +84,47 @@ class ChatbotService:
         logger.info(
             f"Chatbot created successfully - id: {new_bot.id}, public_id: {new_bot.public_id}, tenant_id: {data.tenant_id}")
         return new_bot
+
+    async def list_for_tenant(self, tenant_id: str) -> list[Chatbot]:
+        try:
+            query = select(Chatbot).where(Chatbot.tenant_id == tenant_id)
+            result = await self.db.execute(query)
+            return result.scalars().all()
+        except Exception:
+            logger.error(
+                f"Error listing chatbots for tenant: {tenant_id}", exc_info=True)
+            return []
+
+    async def update_chatbot(self, chatbot_id: str, **fields) -> Optional[Chatbot]:
+        """更新機器人設定（部分更新）。fields 可以包含 name, widget_config, rag_config 等。"""
+        chatbot = await self.get_chatbot_by_id(chatbot_id)
+        if not chatbot:
+            return None
+
+        for k, v in fields.items():
+            if hasattr(chatbot, k) and v is not None:
+                setattr(chatbot, k, v)
+
+        try:
+            await self.db.commit()
+            await self.db.refresh(chatbot)
+            logger.info(f"Chatbot updated - id: {chatbot.id}")
+            return chatbot
+        except Exception:
+            logger.error(
+                f"Error updating chatbot - id: {chatbot_id}", exc_info=True)
+            return None
+
+    async def delete_chatbot(self, chatbot_id: str) -> bool:
+        chatbot = await self.get_chatbot_by_id(chatbot_id)
+        if not chatbot:
+            return False
+        try:
+            await self.db.delete(chatbot)
+            await self.db.commit()
+            logger.info(f"Chatbot deleted - id: {chatbot_id}")
+            return True
+        except Exception:
+            logger.error(
+                f"Error deleting chatbot - id: {chatbot_id}", exc_info=True)
+            return False

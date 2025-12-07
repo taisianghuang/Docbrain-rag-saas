@@ -77,6 +77,16 @@ class ChatbotRead(BaseModel):
     is_active: bool
 
 
+class ChatbotUpdate(BaseModel):
+    name: Optional[str] = None
+    widget_config: Optional[dict] = None
+    is_active: Optional[bool] = None
+
+
+# Backwards-compatible alias used by endpoints
+ChatbotResponse = ChatbotRead
+
+
 # --- Account Schemas ---
 class AccountBase(BaseModel):
     email: str

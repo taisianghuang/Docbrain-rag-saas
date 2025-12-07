@@ -6,6 +6,9 @@ from app.api import deps
 from app.services.ingestion import IngestionService
 from app.services.chatbot import ChatbotService  # 改用 ChatbotService
 from app.schemas import IngestResponse
+from app.api import deps as deps_module
+from app.repositories.document import DocumentRepository
+from fastapi import Path
 
 router = APIRouter()
 
@@ -51,3 +54,29 @@ async def ingest_document(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+
+
+@router.get("/chatbots/{chatbot_id}/documents")
+async def list_documents_for_chatbot(
+    chatbot_id: str,
+    doc_repo: DocumentRepository = Depends(deps.get_document_repository),
+):
+    docs = await doc_repo.list_by_chatbot_id(chatbot_id)
+    return [
+        {
+            "id": str(d.id),
+            "filename": d.filename,
+            "status": d.status,
+            "created_at": d.created_at.isoformat() if getattr(d, "created_at", None) else None,
+        }
+        for d in docs
+    ]
+
+
+@router.delete("/document/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_document(
+    document_id: str,
+    doc_repo: DocumentRepository = Depends(deps.get_document_repository),
+):
+    await doc_repo.delete_by_id(document_id)
+    return None

@@ -6,7 +6,7 @@ import tempfile
 import aiofiles
 from typing import List
 from fastapi import UploadFile, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
+from app.repositories.document import DocumentRepository
 from llama_parse import LlamaParse
 from llama_index.core import Document as LlamaDocument, StorageContext, VectorStoreIndex
 
@@ -19,24 +19,21 @@ logger = logging.getLogger(__name__)
 
 
 class IngestionService:
-    def __init__(self, db: AsyncSession):
-        self.db = db
+    def __init__(self, document_repo: DocumentRepository):
+        self.document_repo = document_repo
 
     async def ingest_file(self, chatbot: Chatbot, file: UploadFile):
-        # 1. DB 寫入 (保持不變)
+        # 1. DB 寫入 via DocumentRepository
         logger.info(
             f"Starting ingest for filename: {file.filename}, chatbot_id: {chatbot.id}")
-        db_doc = DBDocument(
+        db_doc = await self.document_repo.create(
             tenant_id=chatbot.tenant_id,
-            chatbot_id=chatbot.id,
+            chatbot_id=str(chatbot.id),
             filename=file.filename,
             file_url=f"local://{file.filename}",
             status="processing",
             metadata_map={}
         )
-        self.db.add(db_doc)
-        await self.db.commit()
-        await self.db.refresh(db_doc)
         logger.debug(f"Document record created - document_id: {db_doc.id}")
 
         tmp_path = None
@@ -156,13 +153,15 @@ class IngestionService:
             )
             logger.info(f"Nodes successfully written to vector store")
 
-            # 9. 更新 DB 狀態
-            db_doc.status = "indexed"
-            db_doc.metadata_map = {
-                "parsed_chunks": len(nodes),
-                "strategy": rag_config.get("chunking_strategy", "standard")
-            }
-            await self.db.commit()
+            # 9. 更新 DB 狀態 via repository
+            await self.document_repo.update_status(
+                document_id=str(db_doc.id),
+                status="indexed",
+                metadata_map={
+                    "parsed_chunks": len(nodes),
+                    "strategy": rag_config.get("chunking_strategy", "standard")
+                }
+            )
             logger.info(
                 f"Ingest completed successfully - document_id: {db_doc.id}, chunks: {len(nodes)}")
 
@@ -176,9 +175,16 @@ class IngestionService:
             # Error Handling (保持不變)
             logger.error(
                 f"Ingestion error for document_id: {db_doc.id}, filename: {file.filename}, error: {str(e)}", exc_info=True)
-            db_doc.status = "error"
-            db_doc.error_message = str(e)
-            await self.db.commit()
+            # update status via repository if possible
+            try:
+                await self.document_repo.update_status(
+                    document_id=str(db_doc.id),
+                    status="error",
+                    error_message=str(e)
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to update document status after error")
             raise HTTPException(status_code=500, detail=str(e))
 
         finally:
