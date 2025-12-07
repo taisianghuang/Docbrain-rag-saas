@@ -1,10 +1,13 @@
 # backend/app/api/endpoints/conversation.py
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.api import deps
 from app.schemas import ChatRequest, ChatResponse
 from app.services.chat import ChatService
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -15,6 +18,8 @@ async def chat(
     """
     Widget 對話 API
     """
+    logger.info(
+        f"Chat request received - public_id: {request.public_id}, conversation_id: {request.conversation_id}")
     try:
         result = await chat_service.chat(
             public_id=request.public_id,
@@ -22,12 +27,17 @@ async def chat(
             conversation_id=request.conversation_id,
             visitor_id=request.visitor_id
         )
+        logger.info(
+            f"Chat successful - conversation_id: {result['conversation_id']}, sources: {len(result['source_nodes'])}")
 
         return ChatResponse(**result)
 
     except ValueError as e:
+        logger.warning(
+            f"Chat validation error - public_id: {request.public_id}, error: {str(e)}")
         # 通常是 Public ID 錯誤
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        print(f"Chat Error: {e}")
+        logger.error(
+            f"Chat error - public_id: {request.public_id}, error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")

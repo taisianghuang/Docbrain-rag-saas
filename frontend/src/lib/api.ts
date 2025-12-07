@@ -14,13 +14,14 @@ import {
   SignupResponse,
 } from '@/types'; // 使用 @ alias
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+const API_URL = '/api';
 
 const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 // Interceptor to inject Token
@@ -53,7 +54,7 @@ export const authService = {
 // Stats Services
 export const statsService = {
     getOverview: async (): Promise<UsageStats> => {
-        // 由於後端暫時還沒有 /api/stats 端點，我們先回傳 Mock Data 讓 Dashboard 能顯示
+        // 由於後端暫時還沒有 /stats 端點，我們先回傳 Mock Data 讓 Dashboard 能顯示
         // 未來後端實作後，改為: const response = await api.get('/stats/overview'); return response.data;
         
         // 模擬延遲

@@ -1,4 +1,5 @@
 # backend/app/services/chat.py
+import logging
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -15,6 +16,8 @@ from app.core.security import decrypt_value
 from app.services.chatbot import ChatbotService
 from app.core.rag_strategies import create_chat_engine  # <--- 新增 import
 
+logger = logging.getLogger(__name__)
+
 
 class ChatService:
     def __init__(self, db: AsyncSession):
@@ -29,9 +32,15 @@ class ChatService:
         visitor_id: Optional[str] = None
     ):
         # 1. 取得 Chatbot
+        logger.debug(
+            f"Chat service: fetching chatbot with public_id: {public_id}")
         chatbot = await self.chatbot_service.get_chatbot_by_public_id(public_id)
         if not chatbot:
+            logger.warning(
+                f"Chat service: Invalid chatbot public_id: {public_id}")
             raise ValueError("Invalid Chatbot Public ID")
+        logger.debug(
+            f"Chat service: Chatbot found - id: {chatbot.id}, tenant_id: {chatbot.tenant_id}")
 
         # 2. 強制 API Key 檢查 (Strict Policy: Tenant Key Only)
         tenant_openai_key = None
@@ -40,11 +49,15 @@ class ChatService:
                 chatbot.tenant.encrypted_openai_key)
 
         if not tenant_openai_key:
+            logger.error(
+                f"Chat service: Missing OpenAI key for chatbot - id: {chatbot.id}, tenant_id: {chatbot.tenant_id}")
             # 依據您的要求 #1，系統不提供 Key，若 Tenant 沒設就報錯
             raise ValueError(
                 "Tenant OpenAI Key is missing. Please configure it in the dashboard.")
 
         # 3. 處理 Conversation (省略，保持不變) ...
+        logger.debug(
+            f"Chat service: Processing conversation - conversation_id: {conversation_id}, visitor_id: {visitor_id}")
         conversation = None
         if conversation_id:
             query = select(Conversation).where(
@@ -53,6 +66,8 @@ class ChatService:
             conversation = result.scalar_one_or_none()
 
         if not conversation:
+            logger.debug(
+                f"Chat service: Creating new conversation for chatbot_id: {chatbot.id}")
             conversation = Conversation(
                 chatbot_id=chatbot.id, visitor_id=visitor_id)
             self.db.add(conversation)
@@ -60,16 +75,22 @@ class ChatService:
             await self.db.refresh(conversation)
 
         # 儲存 User Message ...
+        logger.debug(
+            f"Chat service: Saving user message - conversation_id: {conversation.id}, query length: {len(user_query)}")
         user_msg = Message(conversation_id=conversation.id,
                            role=MessageRole.USER, content=user_query)
         self.db.add(user_msg)
         await self.db.commit()
 
         # 4. 準備 RAG 環境
+        logger.debug(
+            f"Chat service: Setting up RAG environment for chatbot_id: {chatbot.id}")
 
         # LLM 初始化
         rag_config = chatbot.rag_config or {}
         temperature = float(rag_config.get("temperature", 0.1))
+        logger.debug(
+            f"Chat service: RAG config - mode: {rag_config.get('mode')}, temperature: {temperature}")
 
         llm = OpenAI(
             model=settings.OPENAI_CHAT_LLM_NAME or "gpt-4o-mini",
@@ -101,6 +122,7 @@ class ChatService:
             "system_prompt") or "You are a helpful AI."
 
         # 5. 使用策略工廠建立 Chat Engine
+        logger.debug(f"Chat service: Creating chat engine with strategy")
         chat_engine = create_chat_engine(
             index=index,
             llm=llm,
@@ -110,12 +132,17 @@ class ChatService:
         )
 
         # 6. 執行對話
+        logger.debug(f"Chat service: Executing achat with user query")
         response = await chat_engine.achat(user_query)
         response_text = str(response)
+        logger.debug(
+            f"Chat service: Chat completed - response length: {len(response_text)}")
 
         # 7. 整理來源與儲存 (保持不變)
         source_nodes = []
         if response.source_nodes:
+            logger.debug(
+                f"Chat service: Found {len(response.source_nodes)} source nodes")
             for node in response.source_nodes:
                 source_nodes.append({
                     "document_id": node.metadata.get("document_id"),
@@ -124,6 +151,8 @@ class ChatService:
                     "text": (node.get_content()[:200] + "...") if node.get_content() else ""
                 })
 
+        logger.debug(
+            f"Chat service: Saving assistant message - conversation_id: {conversation.id}")
         ai_msg = Message(
             conversation_id=conversation.id,
             role=MessageRole.ASSISTANT,
@@ -132,6 +161,8 @@ class ChatService:
         )
         self.db.add(ai_msg)
         await self.db.commit()
+        logger.info(
+            f"Chat service completed - conversation_id: {conversation.id}, source_nodes: {len(source_nodes)}")
 
         return {
             "response": response_text,

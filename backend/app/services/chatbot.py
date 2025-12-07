@@ -1,10 +1,13 @@
 # backend/app/services/chatbot.py
+import logging
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.models import Chatbot, Tenant
 from app.schemas import ChatbotCreate
+
+logger = logging.getLogger(__name__)
 
 
 class ChatbotService:
@@ -16,6 +19,7 @@ class ChatbotService:
         透過內部 ID 取得機器人
         使用 selectinload 預先載入 Tenant，方便後續讀取 API Key
         """
+        logger.debug(f"Fetching chatbot by id: {chatbot_id}")
         try:
             query = (
                 select(Chatbot)
@@ -23,14 +27,23 @@ class ChatbotService:
                 .where(Chatbot.id == chatbot_id)
             )
             result = await self.db.execute(query)
-            return result.scalar_one_or_none()
+            chatbot = result.scalar_one_or_none()
+            if chatbot:
+                logger.debug(
+                    f"Chatbot found by id: {chatbot_id}, tenant_id: {chatbot.tenant_id}")
+            else:
+                logger.warning(f"Chatbot not found by id: {chatbot_id}")
+            return chatbot
         except Exception:
+            logger.error(
+                f"Error fetching chatbot by id: {chatbot_id}", exc_info=True)
             return None
 
     async def get_chatbot_by_public_id(self, public_id: str) -> Optional[Chatbot]:
         """
         透過公開 ID 取得機器人 (Widget 用)
         """
+        logger.debug(f"Fetching chatbot by public_id: {public_id}")
         query = (
             select(Chatbot)
             .options(selectinload(Chatbot.tenant))
@@ -38,10 +51,17 @@ class ChatbotService:
         )
         result = await self.db.execute(query)
         chatbot = result.scalar_one_or_none()
+        if chatbot:
+            logger.debug(
+                f"Chatbot found by public_id: {public_id}, id: {chatbot.id}, tenant_id: {chatbot.tenant_id}")
+        else:
+            logger.warning(f"Chatbot not found by public_id: {public_id}")
         return chatbot
 
     async def create_chatbot(self, data: ChatbotCreate) -> Chatbot:
         """從 Pydantic Schema 建立機器人"""
+        logger.info(
+            f"Creating chatbot - name: {data.name}, tenant_id: {data.tenant_id}")
 
         # 組合 Widget Config JSON
         widget_config_json = {
@@ -61,4 +81,6 @@ class ChatbotService:
         self.db.add(new_bot)
         await self.db.commit()
         await self.db.refresh(new_bot)
+        logger.info(
+            f"Chatbot created successfully - id: {new_bot.id}, public_id: {new_bot.public_id}, tenant_id: {data.tenant_id}")
         return new_bot

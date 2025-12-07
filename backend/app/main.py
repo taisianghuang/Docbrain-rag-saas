@@ -86,20 +86,15 @@ app = FastAPI(
 
 
 if settings.BACKEND_CORS_ORIGINS:
-    origins = settings.BACKEND_CORS_ORIGINS.copy()
-    if settings.CODESPACES and settings.CODESPACE_NAME and \
-            settings.ENVIRONMENT == AppEnvironment.LOCAL:
-        # add codespace origin if running in Github codespace
-        origins.append(
-            f"https://{settings.CODESPACE_NAME}-3000.app.github.dev")
+    origins = [str(origin) for origin in settings.BACKEND_CORS_ORIGINS]
+
     # allow all origins
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[str(origin) for origin in origins],
-        allow_origin_regex="https://llama-app-frontend.*\.vercel\.app",
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_origins=["*"],      # 允許的來源列表
+        allow_credentials=True,     # 允許攜帶 Cookie/Token
+        allow_methods=["*"],        # 允許所有方法 (GET, POST, PUT...)
+        allow_headers=["*"],        # 允許所有 Header
     )
 
 app.include_router(api_router, prefix=settings.API_PREFIX)

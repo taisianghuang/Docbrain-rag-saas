@@ -2,6 +2,7 @@ from sqlalchemy import Column, DateTime, UUID
 
 from sqlalchemy.sql import func
 from sqlalchemy.ext.declarative import as_declarative, declared_attr
+import uuid
 
 # --- 新增常數定義 ---
 CASCADE_ALL_DELETE = "all, delete-orphan"
@@ -9,8 +10,8 @@ CASCADE_ALL_DELETE = "all, delete-orphan"
 
 @as_declarative()
 class Base:
-    id = Column(UUID, primary_key=True, index=True,
-                default=func.uuid_generate_v4())
+    id = Column(UUID(as_uuid=True), primary_key=True,
+                index=True, default=uuid.uuid4)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
