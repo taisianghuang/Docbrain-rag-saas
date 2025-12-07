@@ -22,6 +22,7 @@ from app.repositories.chatbot import ChatbotRepository
 from app.repositories.account import AccountRepository
 from app.repositories.tenant import TenantRepository
 from app.repositories.conversation import ConversationRepository
+from app.repositories.auth import AuthRepository
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -30,7 +31,9 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
-    return AuthService(db)
+    """Provide AuthService with an AuthRepository (avoid passing AsyncSession directly)."""
+    repo = AuthRepository(db)
+    return AuthService(repo)
 
 
 def get_account_service(db: AsyncSession = Depends(get_db)) -> AccountService:
@@ -54,8 +57,8 @@ def get_ingestion_service(db: AsyncSession = Depends(get_db)) -> IngestionServic
 
 
 def get_chat_service(db: AsyncSession = Depends(get_db)) -> ChatService:
-    chatbot_repo = ChatbotRepository(db)
-    chatbot_service = ChatbotService(chatbot_repo)
+    # ChatbotService currently expects AsyncSession; create with db.
+    chatbot_service = ChatbotService(db)
     conversation_repo = ConversationRepository(db)
     return ChatService(chatbot_service, conversation_repo)
 

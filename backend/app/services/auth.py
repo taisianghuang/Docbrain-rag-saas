@@ -33,6 +33,7 @@ class AuthService:
         slug = str(uuid.uuid4().hex[:8])
 
         try:
+            # Step 1: Create Tenant (flush to get ID, but don't commit yet)
             new_tenant = Tenant(
                 name=company_name,
                 slug=slug,
@@ -42,21 +43,28 @@ class AuthService:
                     data.llama_cloud_key) if data.llama_cloud_key else None
             )
             await self.repo.create_tenant(new_tenant)
-            await self.repo.commit()
-            await self.repo.refresh(new_tenant)
+            await self.repo.flush()  # Get tenant.id without commit
+            # Save ID before commit (attributes expire after commit)
+            tenant_id = new_tenant.id
+            logger.debug(f"Tenant created with id: {tenant_id}")
 
+            # Step 2: Create Account (flush, don't commit)
             new_account = Account(
                 email=data.email,
                 hashed_password=get_password_hash(data.password),
-                tenant_id=new_tenant.id,
+                tenant_id=tenant_id,
                 full_name=company_name,
                 is_superuser=True,
                 is_active=True
             )
             await self.repo.create_account(new_account)
+            await self.repo.flush()  # Get account.id without commit
+            account_id = new_account.id  # Save ID before commit
+            logger.debug(f"Account created with id: {account_id}")
 
+            # Step 3: Create default Chatbot (flush, don't commit)
             default_bot = Chatbot(
-                tenant_id=new_tenant.id,
+                tenant_id=tenant_id,
                 name="My First Bot",
                 rag_config={"mode": "vector", "top_k": 5},
                 widget_config={
@@ -66,21 +74,24 @@ class AuthService:
                 }
             )
             await self.repo.create_chatbot(default_bot)
+            await self.repo.flush()  # Get chatbot.id without commit
+            chatbot_id = default_bot.id  # Save ID before commit
+            logger.debug(f"Chatbot created with id: {chatbot_id}")
 
+            # Step 4: Single commit for all three entities (atomic transaction)
             await self.repo.commit()
-            await self.repo.refresh(new_account)
-            await self.repo.refresh(default_bot)
+            logger.info(
+                f"Registration committed (atomic) for email: {data.email}, tenant_id: {tenant_id}")
 
-            logger.info(f"Registration committed for email: {data.email}")
         except Exception as e:
             logger.error(f"Registration failed: {str(e)}", exc_info=True)
             raise
 
         return {
-            "account_id": new_account.id,
-            "tenant_id": new_tenant.id,
+            "account_id": account_id,
+            "tenant_id": tenant_id,
             "email": new_account.email,
-            "company_name": new_tenant.name
+            "company_name": company_name
         }
 
     async def authenticate(self, email: str, password: str) -> Optional[dict]:

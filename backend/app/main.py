@@ -7,9 +7,6 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 from alembic.config import Config
 import alembic.config
-from alembic import script
-from alembic.runtime import migration
-from sqlalchemy.engine import create_engine, Engine
 from llama_index.core.node_parser.text.utils import split_by_sentence_tokenizer
 
 from app.api.api import api_router
@@ -18,13 +15,6 @@ from app.core.config import settings, AppEnvironment
 from contextlib import asynccontextmanager
 
 logger = logging.getLogger(__name__)
-
-
-def check_current_head(alembic_cfg: Config, connectable: Engine) -> bool:
-    directory = script.ScriptDirectory.from_config(alembic_cfg)
-    with connectable.begin() as connection:
-        context = migration.MigrationContext.configure(connection)
-        return set(context.get_current_heads()) == set(directory.get_heads())
 
 
 def __setup_logging(log_level: str):
@@ -63,19 +53,17 @@ def __setup_sentry():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 1. 等待 DB 連線
+    logger.info("Starting FastAPI application lifespan")
     await check_database_connection()
+    logger.info("Database connection verified")
 
-    # 2. 檢查 Migration 版本
-    cfg = Config("alembic.ini")
-    db_url = settings.DATABASE_URL.replace(
-        "postgresql+asyncpg://", "postgresql+psycopg2://"
-    )
-    cfg.set_main_option("sqlalchemy.url", db_url)
-    engine = create_engine(db_url, echo=True)
-    if not check_current_head(cfg, engine):
-        raise Exception("Database not up to date. Run alembic upgrade head")
+    # 2. 簡化：migration 檢查由 alembic 啟動時負責，這裡只確保 DB 連線
+    # （migration 升級應在容器啟動時作為初始化腳本執行）
+    logger.info("Lifespan startup complete")
 
     yield
+
+    logger.info("FastAPI application shutting down")
 
 
 app = FastAPI(

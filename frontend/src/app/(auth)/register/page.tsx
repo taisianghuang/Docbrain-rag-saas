@@ -5,20 +5,20 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authService } from "@/lib/api";
-import { SignupRequest } from "@/types";
+import { SignupFormData, SignupRequest as SignupRequestType } from "@/types";
 import { toast } from "sonner";
 
 // UI Components
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Brain, Loader2, ShieldCheck } from "lucide-react";
+import { Brain, Loader2 } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  // 表單狀態
-  const [formData, setFormData] = useState<SignupRequest>({
+  // 表單狀態（始終使用字串，避免 Input 元件的 null 類型錯誤）
+  const [formData, setFormData] = useState<SignupFormData>({
     email: "",
     password: "",
     company_name: "",
@@ -33,9 +33,40 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    // Client-side validation: mirror backend rules (min 8, contains upper/lower/digit, max 30)
+    const errors: string[] = [];
+    const pw = formData.password || "";
+    if (pw.length < 8)
+      errors.push("Password must be at least 8 characters long.");
+    if (pw.length > 30) errors.push("Password must be 30 characters or fewer.");
+    if (!/[A-Z]/.test(pw))
+      errors.push("Password must contain at least one uppercase letter.");
+    if (!/[a-z]/.test(pw))
+      errors.push("Password must contain at least one lowercase letter.");
+    if (!/[0-9]/.test(pw))
+      errors.push("Password must contain at least one digit.");
+
+    if (formData.company_name && formData.company_name.length > 100) {
+      errors.push("Company name must be 100 characters or fewer.");
+    }
+
+    if (errors.length > 0) {
+      // Show all validation errors to user
+      toast.error("Validation errors", { description: errors.join(" \n") });
+      setLoading(false);
+      return;
+    }
 
     try {
-      await authService.register(formData);
+      // Convert empty API key strings to null before sending to backend
+      const payload: SignupRequestType = {
+        email: formData.email,
+        password: formData.password,
+        company_name: formData.company_name,
+        openai_key: formData.openai_key?.trim() || null,
+        llama_cloud_key: formData.llama_cloud_key?.trim() || null,
+      };
+      await authService.register(payload);
 
       toast.success("Account created successfully!", {
         description: "Redirecting to login page...",
@@ -52,9 +83,17 @@ export default function RegisterPage() {
 
       // 3. 使用 instanceof 檢查是否為 Axios 錯誤
       if (err instanceof AxiosError && err.response?.data?.detail) {
-        // 如果後端有回傳詳細錯誤 (FastAPI 的 detail 欄位)
-        // 這裡需要斷言 data 是我們預期的結構，或者直接取用
-        errorMessage = String(err.response.data.detail);
+        const detail = err.response.data.detail;
+        // If backend returned structured { errors: [...] }
+        if (
+          detail &&
+          typeof detail === "object" &&
+          Array.isArray(detail.errors)
+        ) {
+          errorMessage = detail.errors.join(" \n");
+        } else {
+          errorMessage = String(detail);
+        }
       } else if (err instanceof Error) {
         // 一般 JS 錯誤
         errorMessage = err.message;
@@ -112,8 +151,9 @@ export default function RegisterPage() {
                 required
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Min. 6 characters"
-                minLength={6}
+                placeholder="Min. 8 characters, include upper/lower/digit"
+                minLength={8}
+                maxLength={30}
                 className="h-10"
               />
             </div>

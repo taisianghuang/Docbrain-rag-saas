@@ -1,12 +1,14 @@
 # backend/app/core/security.py
+from app.core.config import settings
+from jose import jwt
+from cryptography.fernet import Fernet
 import os
 from typing import Any, Union
 from datetime import datetime, timedelta, timezone
-from passlib.context import CryptContext
-from cryptography.fernet import Fernet
-from jose import jwt
-from app.core.config import settings
+from pwdlib import PasswordHash
+from pwdlib.hashers.argon2 import Argon2Hasher
 
+_hashers = (Argon2Hasher(),)
 # 建議在 .env 設定 ENCRYPTION_KEY，若無則每次重啟會隨機生成 (導致舊資料無法解密)
 # 生成方式: Fernet.generate_key().decode()
 _key = os.getenv("ENCRYPTION_KEY", Fernet.generate_key().decode())
@@ -29,15 +31,19 @@ def decrypt_value(encrypted_value: str) -> str:
         return None
 
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pw_hasher = PasswordHash(_hashers)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return pw_hasher.verify(plain_password, hashed_password)
+    except Exception:
+        # If the hash is unknown or verification fails, return False
+        return False
 
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    return pw_hasher.hash(password)
 
 # --- JWT Logic ---
 

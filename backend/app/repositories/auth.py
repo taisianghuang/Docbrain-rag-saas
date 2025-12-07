@@ -32,5 +32,9 @@ class AuthRepository:
     async def commit(self):
         await self.db.commit()
 
+    async def flush(self):
+        """Flush pending changes to DB without committing (get IDs for FK relationships)"""
+        await self.db.flush()
+
     async def refresh(self, instance):
         await self.db.refresh(instance)

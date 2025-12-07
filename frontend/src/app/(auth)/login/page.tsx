@@ -20,16 +20,11 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
 
-    // 建立 OAuth2 格式的 FormData (username/password)
-    const formData = new FormData();
-    formData.append("username", email);
-    formData.append("password", password);
-
     try {
-      await login(formData);
+      await login({ email, password });
       // 登入成功後 AuthProvider 會自動轉導，但這裡也可以強制跳轉
       router.push("/");
-    } catch (err) {
+    } catch {
       setError("Invalid credentials. Please try again.");
     }
   };

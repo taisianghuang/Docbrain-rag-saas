@@ -118,8 +118,17 @@ export interface SignupRequest {
   email: string;
   password: string;
   company_name?: string;
-  openai_key?: string;
-  llama_cloud_key?: string;
+  openai_key?: string | null;
+  llama_cloud_key?: string | null;
+}
+
+// 前端表單資料（始終用字串，避免 Input 元件的 type 錯誤）
+export interface SignupFormData {
+  email: string;
+  password: string;
+  company_name: string;
+  openai_key: string;
+  llama_cloud_key: string;
 }
 
 export interface SignupResponse {

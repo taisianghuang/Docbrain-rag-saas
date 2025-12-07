@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation"; // 注意：用 next/navigation
 interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
-  login: (formData: FormData) => Promise<void>;
+  login: (credentials: { email: string; password: string }) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -29,10 +29,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsLoading(false);
   }, []);
 
-  const login = async (formData: FormData) => {
+  const login = async (credentials: { email: string; password: string }) => {
     setIsLoading(true);
     try {
-      const data = await authService.login(formData);
+      const data = await authService.login(credentials);
       setToken(data.access_token);
       localStorage.setItem("docbrain_token", data.access_token);
       router.push("/"); // 登入後跳轉首頁

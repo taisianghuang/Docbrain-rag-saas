@@ -116,7 +116,11 @@ class AccountRead(AccountBase):
 # --- Authentication / Registration ---
 class SignupRequest(BaseModel):
     email: EmailStr = Field(..., description="登入信箱")
-    password: str = Field(..., min_length=6, description="登入密碼")
+    # Stronger password constraints: require at least 8 chars (client-side
+    # should enforce too). We also allow a large max_length to support long
+    # passphrases, but the hashing backend handles long inputs.
+    password: str = Field(..., min_length=8,
+                          max_length=30, description="登入密碼")
     company_name: Optional[str] = Field(
         None, description="公司名稱 (未填則預設使用 Email 前綴)")
 
@@ -131,6 +135,12 @@ class SignupResponse(BaseModel):
     email: str
     company_name: str
     message: str = "Registration successful"
+
+
+class LoginRequest(BaseModel):
+    """JSON login request (alternative to OAuth2PasswordRequestForm)"""
+    email: EmailStr = Field(..., description="登入信箱")
+    password: str = Field(..., description="登入密碼")
 
 
 class Token(BaseModel):

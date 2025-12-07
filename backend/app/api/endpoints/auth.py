@@ -4,9 +4,10 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from app.api import deps
-from app.schemas import SignupRequest, SignupResponse, Token
+from app.schemas import SignupRequest, SignupResponse, Token, LoginRequest
 from app.schemas import SignupRequest, SignupResponse
 from app.services.auth import AuthService
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,39 @@ async def register(
     輸入 Email/Password -> 自動建立 Tenant + Account + Default Bot
     """
     logger.info(f"Register attempt for email: {data.email}")
+    # Run additional sign-up validations that can produce multiple messages
+    errors: list[str] = []
+
+    # Password complexity rules
+    pw = data.password or ""
+    if len(pw) < 8:
+        errors.append("Password must be at least 8 characters long.")
+    if not re.search(r"[A-Z]", pw):
+        errors.append("Password must contain at least one uppercase letter.")
+    if not re.search(r"[a-z]", pw):
+        errors.append("Password must contain at least one lowercase letter.")
+    if not re.search(r"[0-9]", pw):
+        errors.append("Password must contain at least one digit.")
+
+    # Company name length (if provided)
+    if data.company_name and len(data.company_name) > 100:
+        errors.append("Company name must be 100 characters or fewer.")
+
+    # Optionally validate API key formats (basic non-empty check)
+    if data.openai_key is not None and data.openai_key.strip() == "":
+        errors.append("OpenAI key, if provided, cannot be empty.")
+    if data.llama_cloud_key is not None and data.llama_cloud_key.strip() == "":
+        errors.append("LlamaCloud key, if provided, cannot be empty.")
+
+    if errors:
+        # Return all validation messages together so client can display guidance
+        logger.warning(
+            f"Registration validation errors for {data.email}: {errors}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"errors": errors}
+        )
+
     try:
         result = await auth_service.register(data)
         logger.info(
@@ -46,38 +80,36 @@ async def register(
 
 @router.post("/login", response_model=Token)
 async def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    credentials: LoginRequest,
     auth_service: AuthService = Depends(deps.get_auth_service)
 ) -> Any:
     """
-    OAuth2 相容登入接口
-    username: 請填入 email
-    password: 密碼
+    JSON 登入接口
+    body: {"email": "user@example.com", "password": "password"}
     """
-    # 注意: OAuth2 spec 規定欄位名稱是 username，但我們邏輯是傳 email
-    logger.info(f"Login attempt for email: {form_data.username}")
+    logger.info(f"Login attempt for email: {credentials.email}")
     try:
         result = await auth_service.authenticate(
-            email=form_data.username,
-            password=form_data.password
+            email=credentials.email,
+            password=credentials.password
         )
 
         if not result:
             logger.warning(
-                f"Login failed for email: {form_data.username} - Invalid credentials")
+                f"Login failed for email: {credentials.email} - Invalid credentials")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        logger.info(f"Login successful for email: {form_data.username}")
+        logger.info(f"Login successful for email: {credentials.email}")
         return result
     except HTTPException:
         raise
     except Exception as e:
         logger.error(
-            f"Login error for email {form_data.username}: {str(e)}", exc_info=True)
+            f"Login error for email {credentials.email}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Login failed"

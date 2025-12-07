@@ -20,10 +20,11 @@ class Tenant(Base):
     slug: Mapped[str] = mapped_column(String(50), unique=True, index=True)
 
     # --- AI Configuration ---
-    encrypted_openai_key: Mapped[Optional[str]
-                                 ] = mapped_column(String, nullable=True)
+    # Fernet-encrypted API keys are base64 strings; reserve ample space
+    encrypted_openai_key: Mapped[Optional[str]] = mapped_column(
+        String(512), nullable=True)
     encrypted_llama_cloud_key: Mapped[Optional[str]] = mapped_column(
-        String, nullable=True)
+        String(512), nullable=True)
 
     # 關聯：使用字串 "Chatbot" 而非類別物件，SQLAlchemy 會自動延遲解析
     chatbots: Mapped[List["Chatbot"]] = relationship(

@@ -1,6 +1,6 @@
 import uuid
 from typing import Optional, Any, TYPE_CHECKING
-from sqlalchemy import String, Integer, ForeignKey
+from sqlalchemy import String, Integer, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from pgvector.sqlalchemy import Vector
@@ -30,7 +30,8 @@ class Document(Base):
 
     status: Mapped[str] = mapped_column(
         String(50), default="pending", index=True)
-    error_message: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(
+        String(1024), nullable=True)
     metadata_map: Mapped[dict] = mapped_column(JSONB, default=dict)
 
     # 關聯
@@ -47,8 +48,8 @@ class LlamaIndexStore(Base):
     __tablename__ = "data_embeddings"
 
     # LlamaIndex 預設使用 varchar 作為 id
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    text: Mapped[str] = mapped_column(String, nullable=False)
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
     metadata_: Mapped[dict] = mapped_column("metadata", JSONB, nullable=True)
     node_id: Mapped[str] = mapped_column(String, nullable=True)
     embedding: Mapped[Optional[Any]] = mapped_column(Vector(1536))

@@ -13,4 +13,4 @@ engine = create_async_engine(
     pool_timeout=120,
 )
 SessionLocal = async_sessionmaker(
-    autocommit=False, autoflush=False, bind=engine)
+    autocommit=False, autoflush=False, bind=engine, expire_on_commit=False)

@@ -1,7 +1,7 @@
 import uuid
 from typing import List, Optional, TYPE_CHECKING
 from enum import Enum as PyEnum
-from sqlalchemy import String, ForeignKey, Integer, Boolean, Enum
+from sqlalchemy import String, ForeignKey, Integer, Boolean, Enum, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
@@ -46,11 +46,12 @@ class Message(Base):
         ForeignKey("conversations.id"), nullable=False, index=True)
     role: Mapped[MessageRole] = mapped_column(
         Enum(MessageRole), nullable=False)
-    content: Mapped[str] = mapped_column(String, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
     sources: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     tokens_used: Mapped[int] = mapped_column(Integer, default=0)
     rating: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
-    feedback_text: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    feedback_text: Mapped[Optional[str]] = mapped_column(
+        String(1024), nullable=True)
 
     # 關聯
     conversation: Mapped["Conversation"] = relationship(
