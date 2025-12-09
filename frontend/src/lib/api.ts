@@ -28,8 +28,8 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     // SSR Check
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('docbrain_token');
+    if (typeof globalThis.window !== 'undefined') {
+      const token = globalThis.window.localStorage.getItem('docbrain_token');
       if (token) {
         config.headers['Authorization'] = `Bearer ${token}`;
       }

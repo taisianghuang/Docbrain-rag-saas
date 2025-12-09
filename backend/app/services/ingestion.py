@@ -33,7 +33,7 @@ class IngestionService:
         await file.seek(0)
         logger.debug("File writing completed")
 
-    async def _retrieve_tenant_keys(self, chatbot: Chatbot) -> tuple[str, str]:
+    def _retrieve_tenant_keys(self, chatbot: Chatbot) -> tuple[str, str]:
         """Retrieve and validate required API keys from tenant."""
         logger.debug(f"Retrieving API keys for tenant_id: {chatbot.tenant_id}")
 

@@ -108,6 +108,7 @@ export function KnowledgeTab({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <span className="text-2xl mr-2">⚠️</span>
+              {/* */}
               Confirm Ingestion Settings
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-4 pt-4">
