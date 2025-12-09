@@ -32,7 +32,10 @@ interface KnowledgeTabProps {
   ragConfig: RagConfig;
 }
 
-export function KnowledgeTab({ chatbotId, ragConfig }: KnowledgeTabProps) {
+export function KnowledgeTab({
+  chatbotId,
+  ragConfig,
+}: Readonly<KnowledgeTabProps>) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -66,8 +69,8 @@ export function KnowledgeTab({ chatbotId, ragConfig }: KnowledgeTabProps) {
   });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
+    const file = e.target.files?.[0];
+    if (file) {
       const isFirstUpload = !documents || documents.length === 0;
 
       if (isFirstUpload) {
@@ -76,7 +79,8 @@ export function KnowledgeTab({ chatbotId, ragConfig }: KnowledgeTabProps) {
       } else {
         ingestMutation.mutate(file);
       }
-      e.target.value = "";
+      // clear the input so selecting the same file again triggers change
+      if (e.target) e.target.value = "";
     }
   };
 
@@ -103,7 +107,7 @@ export function KnowledgeTab({ chatbotId, ragConfig }: KnowledgeTabProps) {
         <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <span className="text-2xl">⚠️</span>
+              <span className="text-2xl mr-2">⚠️</span>
               Confirm Ingestion Settings
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-4 pt-4">
@@ -220,49 +224,47 @@ export function KnowledgeTab({ chatbotId, ragConfig }: KnowledgeTabProps) {
                   </div>
                 </div>
 
-                <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-destructive"
-                    disabled={deleteMutation.isPending}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setPendingDeleteId(doc.id);
-                      setShowDeleteDialog(true);
-                    }}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-destructive"
+                  disabled={deleteMutation.isPending}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPendingDeleteId(doc.id);
+                    setShowDeleteDialog(true);
+                  }}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
 
-                  {/* Delete Confirmation Dialog */}
-                  <AlertDialog
-                    open={showDeleteDialog}
-                    onOpenChange={setShowDeleteDialog}>
-                    <AlertDialogContent className="max-w-md">
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Document</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete this document? This
-                          action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <div className="flex justify-end gap-3">
-                        <AlertDialogCancel
-                          onClick={() => {
-                            setPendingDeleteId(null);
-                            setShowDeleteDialog(false);
-                          }}>
-                          Cancel
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={handleConfirmDelete}
-                          className="bg-destructive text-white">
-                          Delete
-                        </AlertDialogAction>
-                      </div>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </>
+                {/* Delete Confirmation Dialog */}
+                <AlertDialog
+                  open={showDeleteDialog}
+                  onOpenChange={setShowDeleteDialog}>
+                  <AlertDialogContent className="max-w-md">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Document</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete this document? This
+                        action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="flex justify-end gap-3">
+                      <AlertDialogCancel
+                        onClick={() => {
+                          setPendingDeleteId(null);
+                          setShowDeleteDialog(false);
+                        }}>
+                        Cancel
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleConfirmDelete}
+                        className="bg-destructive text-white">
+                        Delete
+                      </AlertDialogAction>
+                    </div>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             ))}
           </div>

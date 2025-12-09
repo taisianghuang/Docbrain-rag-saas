@@ -66,6 +66,7 @@ export interface Document {
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
+  id?: string;
 }
 
 export interface SourceNodeMetadata {

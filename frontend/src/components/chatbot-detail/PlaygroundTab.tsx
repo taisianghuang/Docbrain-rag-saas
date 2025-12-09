@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { conversationService } from "@/lib/api";
 import { Chatbot, ChatMessage, SourceNode } from "@/types";
+import { nanoid } from "nanoid";
 import { toast } from "sonner";
 
 // UI Components
@@ -25,11 +26,12 @@ interface PlaygroundTabProps {
   chatbot: Chatbot;
 }
 
-export function PlaygroundTab({ chatbot }: PlaygroundTabProps) {
+export function PlaygroundTab({ chatbot }: Readonly<PlaygroundTabProps>) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
+      id: `m-${nanoid()}`,
       role: "assistant",
       content: chatbot.widget_config.welcome_message || "Hi! Ask me anything.",
     },
@@ -42,7 +44,7 @@ export function PlaygroundTab({ chatbot }: PlaygroundTabProps) {
     onSuccess: (data) => {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: data.response },
+        { id: `m-${nanoid()}`, role: "assistant", content: data.response },
       ]);
       setSources(data.source_nodes);
     },
@@ -51,6 +53,7 @@ export function PlaygroundTab({ chatbot }: PlaygroundTabProps) {
       setMessages((prev) => [
         ...prev,
         {
+          id: `m-${nanoid()}`,
           role: "assistant",
           content: "Sorry, I encountered an error connecting to the server.",
         },
@@ -61,7 +64,11 @@ export function PlaygroundTab({ chatbot }: PlaygroundTabProps) {
   const handleSend = () => {
     if (!input.trim() || chatMutation.isPending) return;
 
-    const userMsg: ChatMessage = { role: "user", content: input };
+    const userMsg: ChatMessage = {
+      id: `m-${nanoid()}`,
+      role: "user",
+      content: input,
+    };
     const newHistory = [...messages, userMsg];
 
     setMessages(newHistory);
@@ -91,6 +98,7 @@ export function PlaygroundTab({ chatbot }: PlaygroundTabProps) {
               onClick={() => {
                 setMessages([
                   {
+                    id: `m-${nanoid()}`,
                     role: "assistant",
                     content: chatbot.widget_config.welcome_message || "Hi!",
                   },
@@ -106,7 +114,7 @@ export function PlaygroundTab({ chatbot }: PlaygroundTabProps) {
         <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
           {messages.map((msg, i) => (
             <div
-              key={i}
+              key={msg.id ?? `m-${i}`}
               className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               <div
                 className={`flex max-w-[85%] gap-2 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
@@ -176,9 +184,9 @@ export function PlaygroundTab({ chatbot }: PlaygroundTabProps) {
         </CardHeader>
         <CardContent className="flex-1 overflow-y-auto p-4 space-y-3">
           {sources.length > 0 ? (
-            sources.map((source, i) => (
+            sources.map((source) => (
               <div
-                key={i}
+                key={source.node_id}
                 className="text-xs border rounded-md p-3 bg-muted/10 hover:bg-muted/20 transition-colors">
                 <div className="flex justify-between mb-2 text-muted-foreground font-medium">
                   <span

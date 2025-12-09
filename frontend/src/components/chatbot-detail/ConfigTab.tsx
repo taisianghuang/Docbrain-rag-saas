@@ -118,8 +118,11 @@ export function ConfigTab({ chatbot }: Readonly<ConfigTabProps>) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Chatbot Name</label>
+            <label htmlFor="chatbot-name" className="text-sm font-medium">
+              Chatbot Name
+            </label>
             <Input
+              id="chatbot-name"
               value={formData.name}
               onChange={(e) => handleChange(null, "name", e.target.value)}
             />
@@ -128,8 +131,11 @@ export function ConfigTab({ chatbot }: Readonly<ConfigTabProps>) {
           <Separator className="my-2" />
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Widget Title</label>
+            <label htmlFor="widget-title" className="text-sm font-medium">
+              Widget Title
+            </label>
             <Input
+              id="widget-title"
               value={formData.widget_config.title}
               onChange={(e) =>
                 handleChange("widget_config", "title", e.target.value)
@@ -137,8 +143,11 @@ export function ConfigTab({ chatbot }: Readonly<ConfigTabProps>) {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Welcome Message</label>
+            <label htmlFor="welcome-message" className="text-sm font-medium">
+              Welcome Message
+            </label>
             <Input
+              id="welcome-message"
               value={formData.widget_config.welcome_message}
               onChange={(e) =>
                 handleChange("widget_config", "welcome_message", e.target.value)
@@ -146,9 +155,12 @@ export function ConfigTab({ chatbot }: Readonly<ConfigTabProps>) {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Brand Color</label>
+            <label htmlFor="primary-color" className="text-sm font-medium">
+              Brand Color
+            </label>
             <div className="flex items-center gap-3">
               <input
+                id="primary-color"
                 type="color"
                 className="h-10 w-12 cursor-pointer rounded border border-input p-1"
                 value={formData.widget_config.primary_color}
@@ -157,6 +169,7 @@ export function ConfigTab({ chatbot }: Readonly<ConfigTabProps>) {
                 }
               />
               <Input
+                id="primary-color-hex"
                 className="font-mono uppercase w-32"
                 value={formData.widget_config.primary_color}
                 onChange={(e) =>
