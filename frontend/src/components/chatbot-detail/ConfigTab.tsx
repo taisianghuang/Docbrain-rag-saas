@@ -42,7 +42,21 @@ interface ConfigTabProps {
 
 export function ConfigTab({ chatbot }: ConfigTabProps) {
   const queryClient = useQueryClient();
-  const [formData, setFormData] = useState<Chatbot>(chatbot);
+  const [formData, setFormData] = useState<Chatbot>({
+    ...chatbot,
+    rag_config: chatbot.rag_config || {
+      mode: "vector",
+      chunking_strategy: "standard",
+      llm_model: "gpt-4o-mini",
+      top_k: 5,
+      temperature: 0.1,
+    },
+    widget_config: chatbot.widget_config || {
+      title: "Chat Assistant",
+      primary_color: "#2563eb",
+      welcome_message: "Hi! How can I help you today?",
+    },
+  });
   const [isDirty, setIsDirty] = useState(false);
 
   // 檢查是否有文件存在 (若有，鎖定 RAG 設定)
@@ -228,6 +242,30 @@ export function ConfigTab({ chatbot }: ConfigTabProps) {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">LLM Model</label>
+            <Select
+              value={formData.rag_config.llm_model || "gpt-4o-mini"}
+              onValueChange={(val) =>
+                handleChange("rag_config", "llm_model", val)
+              }>
+              <SelectTrigger>
+                <SelectValue placeholder="Select model" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
+                <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
+                <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Model used for generating chat responses
+            </p>
           </div>
 
           <Separator />

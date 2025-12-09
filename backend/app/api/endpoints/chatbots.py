@@ -24,6 +24,7 @@ async def list_chatbots(
             "tenant_id": str(c.tenant_id),
             "name": c.name,
             "public_id": c.public_id,
+            "rag_config": c.rag_config or {},
             "widget_config": c.widget_config or {},
             "is_active": c.is_active,
         }
@@ -34,8 +35,11 @@ async def list_chatbots(
 @router.post("/chatbots", response_model=ChatbotResponse, status_code=status.HTTP_201_CREATED)
 async def create_chatbot(
     data: ChatbotCreate,
+    current_user=Depends(deps.get_current_user),
     chatbot_service: ChatbotService = Depends(deps.get_chatbot_service),
 ):
+    # Override tenant_id from current user
+    data.tenant_id = current_user.tenant_id
     logger.info(
         f"Creating chatbot for tenant_id: {data.tenant_id}, name: {data.name}")
     bot = await chatbot_service.create_chatbot(data)
@@ -44,6 +48,7 @@ async def create_chatbot(
         "tenant_id": str(bot.tenant_id),
         "name": bot.name,
         "public_id": bot.public_id,
+        "rag_config": bot.rag_config or {},
         "widget_config": bot.widget_config or {},
         "is_active": bot.is_active,
     }
@@ -60,6 +65,7 @@ async def get_chatbot(chatbot_id: str, chatbot_service: ChatbotService = Depends
         "tenant_id": str(bot.tenant_id),
         "name": bot.name,
         "public_id": bot.public_id,
+        "rag_config": bot.rag_config or {},
         "widget_config": bot.widget_config or {},
         "is_active": bot.is_active,
     }
@@ -76,13 +82,14 @@ async def update_chatbot(chatbot_id: str, data: ChatbotUpdate, chatbot_service: 
         "tenant_id": str(updated.tenant_id),
         "name": updated.name,
         "public_id": updated.public_id,
+        "rag_config": updated.rag_config or {},
         "widget_config": updated.widget_config or {},
         "is_active": updated.is_active,
     }
 
 
 @router.delete("/chatbots/{chatbot_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_chatbot(chatbot_id: str, chatbot_service: ChatbotService = Depends(deps.get_chatbot_service)) -> Any:
+async def delete_chatbot(chatbot_id: str, chatbot_service: ChatbotService = Depends(deps.get_chatbot_service)) -> None:
     ok = await chatbot_service.delete_chatbot(chatbot_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,

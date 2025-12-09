@@ -4,6 +4,7 @@ from sqlalchemy import String, Boolean, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB, ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
+from app.models.config_schemas import RagConfigSchema, WidgetConfigSchema
 
 if TYPE_CHECKING:
     from app.models.tenant import Tenant
@@ -29,10 +30,11 @@ class Chatbot(Base):
 
     # --- AI Configuration ---
     rag_config: Mapped[dict] = mapped_column(
-        JSONB, default=lambda: {"mode": "vector", "top_k": 5})
+        JSONB, default=lambda: RagConfigSchema().model_dump())
 
     # --- UI Configuration ---
-    widget_config: Mapped[dict] = mapped_column(JSONB, default=dict)
+    widget_config: Mapped[dict] = mapped_column(
+        JSONB, default=lambda: WidgetConfigSchema().model_dump())
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 

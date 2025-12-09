@@ -20,7 +20,7 @@ class TenantSettingsResponse(BaseModel):
     llama_cloud_key_configured: bool
 
 
-@router.get("/tenant/settings", response_model=TenantSettingsResponse)
+@router.get("/tenant", response_model=TenantSettingsResponse)
 async def get_tenant_settings(
     current_user=Depends(deps.get_current_user),
     tenant_service: TenantService = Depends(deps.get_tenant_service),
@@ -40,7 +40,7 @@ async def get_tenant_settings(
     }
 
 
-@router.patch("/tenant/settings", response_model=TenantSettingsResponse)
+@router.patch("/tenant", response_model=TenantSettingsResponse)
 async def update_tenant_settings(
     data: TenantSettingsUpdate,
     current_user=Depends(deps.get_current_user),

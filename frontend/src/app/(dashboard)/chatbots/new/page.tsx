@@ -28,6 +28,7 @@ export default function CreateChatbotPage() {
       chunking_strategy: ChunkingStrategy.STANDARD,
       top_k: 5,
       temperature: 0.1,
+      llm_model: "gpt-4o-mini",
     },
     widget_config: {
       title: "Help Assistant",

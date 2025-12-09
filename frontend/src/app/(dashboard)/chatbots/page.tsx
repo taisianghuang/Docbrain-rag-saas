@@ -110,11 +110,13 @@ export default function ChatbotListPage() {
                 <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Settings2 className="h-3.5 w-3.5" />
-                    <span className="capitalize">{bot.rag_config.mode}</span>
+                    <span className="capitalize">
+                      {bot.rag_config?.mode || "N/A"}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Activity className="h-3.5 w-3.5" />
-                    <span>Top-k: {bot.rag_config.top_k}</span>
+                    <span>Top-k: {bot.rag_config?.top_k || 5}</span>
                   </div>
                 </div>
               </CardContent>

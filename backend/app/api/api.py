@@ -1,6 +1,6 @@
 # backend/app/api/api.py
 from fastapi import APIRouter
-from app.api.endpoints import conversation, documents, health, auth
+from app.api.endpoints import conversation, documents, health, auth, chatbots, settings
 
 api_router = APIRouter()
 
@@ -30,4 +30,17 @@ api_router.include_router(
     auth.router,
     prefix="/auth",
     tags=["auth"]
+)
+
+# 註冊 Chatbots API
+api_router.include_router(
+    chatbots.router,
+    tags=["chatbots"]
+)
+
+# 註冊 Settings API
+api_router.include_router(
+    settings.router,
+    prefix="/settings",
+    tags=["settings"]
 )

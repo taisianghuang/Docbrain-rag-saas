@@ -99,7 +99,7 @@ export const chatbotService = {
 // Document Services
 export const documentService = {
   list: async (_chatbotId: string): Promise<Document[]> => {
-    const response = await api.get<Document[]>(`/chatbots/${_chatbotId}/documents`);
+    const response = await api.get<Document[]>(`/document/${_chatbotId}/documents`);
     return response.data;
   },
   ingest: async (file: File, _chatbotId: string): Promise<IngestResponse> => {
@@ -130,11 +130,11 @@ export const conversationService = {
 // Tenant Settings
 export const settingsService = {
     get: async (): Promise<TenantSettings> => {
-        const response = await api.get('/tenant/settings'); // 假設後端有這隻
+        const response = await api.get('/settings/tenant');
         return response.data;
     },
     update: async (settings: TenantSettings): Promise<TenantSettings> => {
-        const response = await api.patch('/tenant/settings', settings); // 假設後端有這隻
+        const response = await api.patch('/settings/tenant', settings);
         return response.data;
     }
 };

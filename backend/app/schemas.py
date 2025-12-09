@@ -59,13 +59,14 @@ class TenantRead(BaseModel):
 
 # --- Chatbot Schemas (創建機器人) ---
 class ChatbotCreate(BaseModel):
-    tenant_id: uuid.UUID = Field(..., description="歸屬的租戶 ID")
+    tenant_id: uuid.UUID | None = None  # Optional, will be set from current_user
     name: str = Field(..., description="機器人名稱")
 
-    # UI 設定
-    widget_title: str = "Chat Assistant"
-    primary_color: str = "#2563eb"
-    welcome_message: str = "Hi! How can I help you?"
+    # RAG Configuration
+    rag_config: dict | None = None
+
+    # Widget Configuration
+    widget_config: dict | None = None
 
 
 class ChatbotRead(BaseModel):
@@ -73,12 +74,14 @@ class ChatbotRead(BaseModel):
     tenant_id: uuid.UUID
     name: str
     public_id: str  # <--- 這就是 Widget 要用的 ID
+    rag_config: dict
     widget_config: dict
     is_active: bool
 
 
 class ChatbotUpdate(BaseModel):
     name: Optional[str] = None
+    rag_config: Optional[dict] = None
     widget_config: Optional[dict] = None
     is_active: Optional[bool] = None
 

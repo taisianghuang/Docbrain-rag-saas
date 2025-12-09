@@ -14,8 +14,8 @@ export enum RagMode {
   VECTOR = "vector",
   HYBRID = "hybrid",
   ROUTER = "router",
-  FAST = "fast",
-  PRECISE = "precise"
+  SENTENCE_WINDOW = "sentence_window",
+  PARENT_CHILD = "parent_child"
 }
 
 export enum ChunkingStrategy {
@@ -28,6 +28,7 @@ export enum ChunkingStrategy {
 export interface RagConfig {
   mode: RagMode;
   chunking_strategy: ChunkingStrategy;
+  llm_model: string;
   top_k: number;
   temperature: number;
 }
@@ -92,8 +93,11 @@ export interface IngestResponse {
 }
 
 export interface TenantSettings {
-  openai_api_key: string;
-  llama_cloud_key: string;
+  tenant_id?: string;
+  openai_key_configured?: boolean;
+  llama_cloud_key_configured?: boolean;
+  openai_key?: string;
+  llama_cloud_key?: string;
 }
 
 export interface UsageStats {

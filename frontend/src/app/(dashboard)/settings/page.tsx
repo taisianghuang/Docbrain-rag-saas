@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { settingsService } from "@/lib/api";
-import { TenantSettings } from "@/types";
 import { toast } from "sonner";
 
 // UI Components
@@ -21,9 +20,9 @@ import { Separator } from "@/components/ui/separator";
 import { Key, ShieldCheck, Save, Loader2, CreditCard } from "lucide-react";
 
 export default function SettingsPage() {
-  // 初始狀態
-  const [keys, setKeys] = useState<TenantSettings>({
-    openai_api_key: "",
+  // 初始狀態 - 使用空字串確保 controlled input
+  const [keys, setKeys] = useState({
+    openai_key: "",
     llama_cloud_key: "",
   });
 
@@ -33,21 +32,12 @@ export default function SettingsPage() {
     queryFn: settingsService.get,
   });
 
-  // 當資料載入後，更新表單狀態
+  // 當資料載入後，顯示配置狀態（不顯示實際 key）
   useEffect(() => {
     if (settings) {
-      // 加入檢查：只有當 API Key 真的是空字串(初始值)的時候才覆蓋，避免無窮迴圈或警告
-      // 或者檢查是否與當前狀態不同
-      setKeys((prev) => {
-        if (
-          prev.openai_api_key === settings.openai_api_key &&
-          prev.llama_cloud_key === settings.llama_cloud_key
-        ) {
-          return prev; // 不更新狀態
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        return settings;
-      });
+      // Backend 只返回配置狀態，不返回實際 key
+      // 保持 input 為空字串，用戶可以輸入新的 key
+      // 如果已配置，顯示 placeholder 提示
     }
   }, [settings]);
 
@@ -56,7 +46,10 @@ export default function SettingsPage() {
     mutationFn: settingsService.update,
     onSuccess: (data) => {
       // 更新本地狀態以反映最新值 (例如 masked keys)
-      setKeys(data);
+      setKeys({
+        openai_key: data.openai_key || "",
+        llama_cloud_key: data.llama_cloud_key || "",
+      });
       toast.success("Settings updated successfully.", {
         description: "Your API keys are now encrypted and stored.",
       });
@@ -114,17 +107,26 @@ export default function SettingsPage() {
               </label>
               <div className="relative">
                 <Input
-                  name="openai_api_key"
+                  name="openai_key"
                   type="password"
-                  value={keys.openai_api_key}
+                  value={keys.openai_key}
                   onChange={handleChange}
-                  placeholder="sk-proj-..."
+                  placeholder={
+                    settings?.openai_key_configured
+                      ? "••••••••••••••••••••••• (configured)"
+                      : "sk-proj-..."
+                  }
                   className="pr-10 font-mono"
                 />
               </div>
               <p className="text-[0.8rem] text-muted-foreground flex items-center gap-1">
                 <ShieldCheck className="h-3 w-3 text-green-600" />
                 Used for LLM generation (GPT-4o, GPT-3.5-turbo).
+                {settings?.openai_key_configured && (
+                  <span className="text-green-600 font-medium ml-1">
+                    ✓ Configured
+                  </span>
+                )}
               </p>
             </div>
 
@@ -140,13 +142,22 @@ export default function SettingsPage() {
                 type="password"
                 value={keys.llama_cloud_key}
                 onChange={handleChange}
-                placeholder="llx-..."
+                placeholder={
+                  settings?.llama_cloud_key_configured
+                    ? "••••••••••••••••••••••• (configured)"
+                    : "llx-..."
+                }
                 className="font-mono"
               />
               <p className="text-[0.8rem] text-muted-foreground flex items-center gap-1">
                 <ShieldCheck className="h-3 w-3 text-green-600" />
                 Used for parsing complex documents (PDFs with tables) via
                 LlamaParse.
+                {settings?.llama_cloud_key_configured && (
+                  <span className="text-green-600 font-medium ml-1">
+                    ✓ Configured
+                  </span>
+                )}
               </p>
             </div>
           </CardContent>

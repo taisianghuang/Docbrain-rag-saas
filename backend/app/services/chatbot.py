@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.models import Chatbot, Tenant
+from app.models.config_schemas import RagConfigSchema, WidgetConfigSchema
 from app.schemas import ChatbotCreate
 
 logger = logging.getLogger(__name__)
@@ -63,18 +64,36 @@ class ChatbotService:
         logger.info(
             f"Creating chatbot - name: {data.name}, tenant_id: {data.tenant_id}")
 
-        # 組合 Widget Config JSON
-        widget_config_json = {
-            "title": data.widget_title,
-            "primaryColor": data.primary_color,
-            "welcomeMessage": data.welcome_message
-        }
+        # Normalize rag_config to snake_case using schema validation
+        if data.rag_config:
+            # Validate and normalize rag_config
+            rag_schema = RagConfigSchema(**data.rag_config)
+            rag_config_json = rag_schema.model_dump()
+        else:
+            rag_config_json = RagConfigSchema().model_dump()
+
+        # Normalize widget_config to snake_case using schema validation
+        if data.widget_config:
+            # Convert camelCase keys to snake_case if present
+            normalized_widget = {}
+            for key, value in data.widget_config.items():
+                # Map camelCase to snake_case
+                if key == "primaryColor":
+                    normalized_widget["primary_color"] = value
+                elif key == "welcomeMessage":
+                    normalized_widget["welcome_message"] = value
+                else:
+                    normalized_widget[key] = value
+            widget_schema = WidgetConfigSchema(**normalized_widget)
+            widget_config_json = widget_schema.model_dump()
+        else:
+            widget_config_json = WidgetConfigSchema().model_dump()
 
         new_bot = Chatbot(
             tenant_id=data.tenant_id,
             name=data.name,
             widget_config=widget_config_json,
-            rag_config={"mode": "vector", "top_k": 5},
+            rag_config=rag_config_json,
             # public_id 由 Model 的 default function 自動生成
         )
 
@@ -103,12 +122,35 @@ class ChatbotService:
 
         for k, v in fields.items():
             if hasattr(chatbot, k) and v is not None:
-                setattr(chatbot, k, v)
+                # Normalize config fields to snake_case
+                if k == "rag_config":
+                    rag_schema = RagConfigSchema(**v)
+                    setattr(chatbot, k, rag_schema.model_dump())
+                elif k == "widget_config":
+                    # Convert camelCase to snake_case
+                    normalized_widget = {}
+                    for key, value in v.items():
+                        if key == "primaryColor":
+                            normalized_widget["primary_color"] = value
+                        elif key == "welcomeMessage":
+                            normalized_widget["welcome_message"] = value
+                        else:
+                            normalized_widget[key] = value
+                    widget_schema = WidgetConfigSchema(**normalized_widget)
+                    setattr(chatbot, k, widget_schema.model_dump())
+                else:
+                    setattr(chatbot, k, v)
 
         try:
             await self.db.commit()
             await self.db.refresh(chatbot)
             logger.info(f"Chatbot updated - id: {chatbot.id}")
+            return chatbot
+        except Exception:
+            logger.error(
+                f"Error updating chatbot: {chatbot_id}", exc_info=True)
+            await self.db.rollback()
+            return None
             return chatbot
         except Exception:
             logger.error(

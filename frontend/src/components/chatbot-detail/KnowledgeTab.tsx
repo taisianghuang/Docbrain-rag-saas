@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { documentService } from "@/lib/api";
 import { RagConfig } from "@/types";
@@ -16,6 +16,15 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Upload, FileText, Trash2, Loader2 } from "lucide-react";
 
 interface KnowledgeTabProps {
@@ -26,6 +35,8 @@ interface KnowledgeTabProps {
 export function KnowledgeTab({ chatbotId, ragConfig }: KnowledgeTabProps) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
   const { data: documents, isLoading } = useQuery({
     queryKey: ["documents", chatbotId],
@@ -55,20 +66,11 @@ export function KnowledgeTab({ chatbotId, ragConfig }: KnowledgeTabProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-
       const isFirstUpload = !documents || documents.length === 0;
 
       if (isFirstUpload) {
-        const confirmed = confirm(
-          `Important: Uploading "${file.name}" will lock your configuration.\n\n` +
-            `Current Settings:\n` +
-            `- Strategy: ${ragConfig.chunking_strategy}\n` +
-            `- Mode: ${ragConfig.mode}\n\n` +
-            `Do you want to proceed?`
-        );
-        if (confirmed) {
-          ingestMutation.mutate(file);
-        }
+        setPendingFile(file);
+        setShowConfirmDialog(true);
       } else {
         ingestMutation.mutate(file);
       }
@@ -76,8 +78,59 @@ export function KnowledgeTab({ chatbotId, ragConfig }: KnowledgeTabProps) {
     }
   };
 
+  const handleConfirmUpload = () => {
+    if (pendingFile) {
+      ingestMutation.mutate(pendingFile);
+      setPendingFile(null);
+    }
+    setShowConfirmDialog(false);
+  };
+
   return (
     <div className="space-y-6">
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <span className="text-2xl">⚠️</span>
+              Confirm Ingestion Settings
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4 pt-4">
+              <p>
+                You are about to ingest <strong>{pendingFile?.name}</strong>.
+              </p>
+              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded p-3 space-y-2">
+                <p className="font-semibold text-orange-900 dark:text-orange-200">
+                  Important:
+                </p>
+                <p className="text-sm text-orange-800 dark:text-orange-300">
+                  The current{" "}
+                  <strong>
+                    Chunking Strategy ({ragConfig.chunking_strategy})
+                  </strong>{" "}
+                  and <strong>Retrieval Mode ({ragConfig.mode})</strong> will be
+                  permanently locked for this chatbot once this file is
+                  ingested.
+                </p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                To change these settings later, you must delete all documents
+                from the Knowledge Base first.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex justify-end gap-3">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmUpload}
+              className="bg-blue-600 hover:bg-blue-700">
+              Confirm & Upload
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Upload Area */}
       <Card
         className="border-dashed border-2 hover:border-primary/50 hover:bg-muted/5 transition-all cursor-pointer group"

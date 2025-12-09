@@ -56,7 +56,7 @@ async def ingest_document(
         )
 
 
-@router.get("/chatbots/{chatbot_id}/documents")
+@router.get("/{chatbot_id}/documents")
 async def list_documents_for_chatbot(
     chatbot_id: str,
     doc_repo: DocumentRepository = Depends(deps.get_document_repository),
