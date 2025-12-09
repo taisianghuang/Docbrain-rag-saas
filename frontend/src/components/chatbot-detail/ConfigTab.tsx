@@ -202,14 +202,16 @@ export function ConfigTab({ chatbot }: ConfigTabProps) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Retrieval Mode</label>
+              <label htmlFor="retrieval-mode" className="text-sm font-medium">
+                Retrieval Mode
+              </label>
               <Select
                 disabled={Boolean(hasDocuments)}
                 value={formData.rag_config.mode}
                 onValueChange={(val) =>
                   handleChange("rag_config", "mode", val)
                 }>
-                <SelectTrigger>
+                <SelectTrigger id="retrieval-mode">
                   <SelectValue placeholder="Select mode" />
                 </SelectTrigger>
                 <SelectContent>

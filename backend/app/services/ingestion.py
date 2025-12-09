@@ -3,6 +3,7 @@ import logging
 import os
 import shutil
 import tempfile
+import uuid
 import aiofiles
 import anyio
 from typing import List
@@ -30,7 +31,7 @@ class IngestionService:
             while content := await file.read(1024 * 1024):
                 await out_file.write(content)
         await file.seek(0)
-        logger.debug(f"File writing completed - tmp_path: {tmp_path}")
+        logger.debug("File writing completed")
 
     async def _retrieve_tenant_keys(self, chatbot: Chatbot) -> tuple[str, str]:
         """Retrieve and validate required API keys from tenant."""
@@ -146,10 +147,11 @@ class IngestionService:
 
         tmp_path = None
         try:
-            # Create temporary file asynchronously
+            # Create temporary file path and write asynchronously
             suffix = os.path.splitext(file.filename)[1]
-            fd, tmp_path = tempfile.mkstemp(suffix=suffix)
-            os.close(fd)
+            tmp_dir = tempfile.gettempdir()
+            tmp_path = os.path.join(
+                tmp_dir, f"doc_upload_{uuid.uuid4().hex}{suffix}")
 
             await self._write_file_async(tmp_path, file)
 

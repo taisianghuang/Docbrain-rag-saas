@@ -35,7 +35,7 @@ async def register(
         errors.append("Password must contain at least one uppercase letter.")
     if not re.search(r"[a-z]", pw):
         errors.append("Password must contain at least one lowercase letter.")
-    if not re.search(r"[0-9]", pw):
+    if not re.search(r"\d", pw):
         errors.append("Password must contain at least one digit.")
 
     # Company name length (if provided)

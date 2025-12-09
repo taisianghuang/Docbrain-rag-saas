@@ -4,11 +4,9 @@ from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, s
 from typing import Any
 from app.api import deps
 from app.services.ingestion import IngestionService
-from app.services.chatbot import ChatbotService  # 改用 ChatbotService
+from app.services.chatbot import ChatbotService
 from app.schemas import IngestResponse
-from app.api import deps as deps_module
 from app.repositories.document import DocumentRepository
-from fastapi import Path
 
 router = APIRouter()
 

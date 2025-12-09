@@ -6,6 +6,7 @@ import { useMutation } from "@tanstack/react-query";
 import { chatbotService } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -46,7 +47,7 @@ export default function CreateChatbotPage() {
     },
     onError: (error) => {
       console.error(error);
-      alert("Failed to create chatbot. Please try again.");
+      toast.error("Failed to create chatbot. Please try again.");
     },
   });
 
@@ -104,10 +105,13 @@ export default function CreateChatbotPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-2">
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              <label
+                htmlFor="chatbot-name"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                 Chatbot Name
               </label>
               <Input
+                id="chatbot-name"
                 placeholder="e.g. Legal Copilot, HR Helper"
                 value={formData.name}
                 onChange={handleRootChange}
@@ -131,8 +135,11 @@ export default function CreateChatbotPage() {
           <CardContent className="grid gap-6 md:grid-cols-2">
             {/* Retrieval Mode */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Retrieval Mode</label>
+              <label htmlFor="retrieval-mode" className="text-sm font-medium">
+                Retrieval Mode
+              </label>
               <select
+                id="retrieval-mode"
                 className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 value={formData.rag_config.mode}
                 onChange={(e) =>
@@ -152,8 +159,13 @@ export default function CreateChatbotPage() {
 
             {/* Chunking Strategy */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Chunking Strategy</label>
+              <label
+                htmlFor="chunking-strategy"
+                className="text-sm font-medium">
+                Chunking Strategy
+              </label>
               <select
+                id="chunking-strategy"
                 className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 value={formData.rag_config.chunking_strategy}
                 onChange={(e) =>
@@ -178,10 +190,11 @@ export default function CreateChatbotPage() {
 
             {/* Top K */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">
+              <label htmlFor="top-k" className="text-sm font-medium">
                 Top K Sources ({formData.rag_config.top_k})
               </label>
               <Input
+                id="top-k"
                 type="number"
                 min={1}
                 max={20}
@@ -198,10 +211,11 @@ export default function CreateChatbotPage() {
 
             {/* Temperature */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">
+              <label htmlFor="temperature" className="text-sm font-medium">
                 Temperature ({formData.rag_config.temperature})
               </label>
               <Input
+                id="temperature"
                 type="number"
                 step="0.1"
                 min="0"
@@ -235,8 +249,11 @@ export default function CreateChatbotPage() {
           </CardHeader>
           <CardContent className="grid gap-6 md:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Widget Title</label>
+              <label htmlFor="widget-title" className="text-sm font-medium">
+                Widget Title
+              </label>
               <Input
+                id="widget-title"
                 value={formData.widget_config.title}
                 onChange={(e) =>
                   handleDeepChange("widget_config", "title", e.target.value)
@@ -245,9 +262,12 @@ export default function CreateChatbotPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Brand Color</label>
+              <label htmlFor="brand-color" className="text-sm font-medium">
+                Brand Color
+              </label>
               <div className="flex items-center gap-3">
                 <input
+                  id="brand-color"
                   type="color"
                   className="h-10 w-12 cursor-pointer rounded border border-gray-300 p-1"
                   value={formData.widget_config.primary_color}
@@ -260,6 +280,7 @@ export default function CreateChatbotPage() {
                   }
                 />
                 <Input
+                  id="brand-color-hex"
                   value={formData.widget_config.primary_color}
                   onChange={(e) =>
                     handleDeepChange(
@@ -274,8 +295,11 @@ export default function CreateChatbotPage() {
             </div>
 
             <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-medium">Welcome Message</label>
+              <label htmlFor="welcome-message" className="text-sm font-medium">
+                Welcome Message
+              </label>
               <Input
+                id="welcome-message"
                 value={formData.widget_config.welcome_message}
                 onChange={(e) =>
                   handleDeepChange(

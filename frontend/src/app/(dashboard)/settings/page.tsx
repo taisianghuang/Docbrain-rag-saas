@@ -102,11 +102,14 @@ export default function SettingsPage() {
           <CardContent className="space-y-6">
             {/* OpenAI Key */}
             <div className="space-y-2">
-              <label className="text-sm font-medium leading-none">
+              <label
+                htmlFor="openai_key"
+                className="text-sm font-medium leading-none">
                 OpenAI API Key
               </label>
               <div className="relative">
                 <Input
+                  id="openai_key"
                   name="openai_key"
                   type="password"
                   value={keys.openai_key}
@@ -134,10 +137,13 @@ export default function SettingsPage() {
 
             {/* LlamaCloud Key */}
             <div className="space-y-2">
-              <label className="text-sm font-medium leading-none">
+              <label
+                htmlFor="llama_cloud_key"
+                className="text-sm font-medium leading-none">
                 LlamaCloud API Key
               </label>
               <Input
+                id="llama_cloud_key"
                 name="llama_cloud_key"
                 type="password"
                 value={keys.llama_cloud_key}

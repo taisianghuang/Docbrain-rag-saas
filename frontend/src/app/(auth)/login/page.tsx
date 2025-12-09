@@ -56,8 +56,11 @@ export default function LoginPage() {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium mb-1 block">Email</label>
+              <label htmlFor="email" className="text-sm font-medium mb-1 block">
+                Email
+              </label>
               <Input
+                id="email"
                 type="email"
                 required
                 value={email}
@@ -67,8 +70,13 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">Password</label>
+              <label
+                htmlFor="password"
+                className="text-sm font-medium mb-1 block">
+                Password
+              </label>
               <Input
+                id="password"
                 type="password"
                 required
                 value={password}
