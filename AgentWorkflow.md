@@ -1,6 +1,6 @@
 # Agent Workflow History — DocBrain RAG SaaS
 
-**Last Updated**: 2025-12-08T17:38:00 (Taiwan Time, UTC+8)
+**Last Updated**: 2025-12-09T10:16:00 (Taiwan Time, UTC+8)
 
 ## Modification History
 
@@ -33,4 +33,5 @@
 | 2025-12-08T17:11:00 | Fix controlled input warning in SettingsPage | frontend/src/app/(dashboard)/settings/page.tsx, frontend/src/types/index.ts | Updated TenantSettings type to match backend response (openai_key_configured/llama_cloud_key_configured booleans instead of strings); initialized keys state with empty strings instead of undefined to prevent controlled input warnings; added dynamic placeholder based on configured status | ✅ |
 | 2025-12-08T17:20:00 | Add LLM Model to RAG Configuration | app/models/config_schemas.py, frontend/src/types/index.ts, frontend/src/components/chatbot-detail/ConfigTab.tsx, frontend/src/app/(dashboard)/chatbots/new/page.tsx | Added llm_model field to RagConfigSchema with default "gpt-4o-mini"; updated frontend RagConfig interface with llm_model; added LLM Model selector dropdown in ConfigTab with 4 options (gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo); initialized default llm_model in both ConfigTab and CreateChatbotPage; enables per-chatbot LLM model selection for chat generation | ✅ |
 | 2025-12-08T17:38:00 | Change llm_model to Literal type | app/models/config_schemas.py | Changed llm_model from str to Literal["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"] for strict type validation; ensures only valid GPT models can be assigned | ✅ |
+| 2025-12-09T10:16:00 | Refactor services for code quality | app/services/chatbot.py, app/services/ingestion.py | **chatbot.py**: Extracted 3 helper methods to reduce update_chatbot cognitive complexity (23→8): _normalize_widget_config, _normalize_rag_config, _apply_field_update, _should_update_field, _commit_update. **ingestion.py**: Reduced ingest_file cognitive complexity (16→8) by extracting 5 helper methods: _write_file_async, _retrieve_tenant_keys, _parse_and_chunk_documents, _inject_node_metadata, _write_to_vector_store. Fixed 4 security/async issues: (1) Replaced f-string without args with plain string, (2) Replaced sync tempfile.NamedTemporaryFile with async anyio.open_file, (3) Prevented log injection by removing user-controlled data from error logs, (4) Changed error responses to not leak internal details | ✅ |
 

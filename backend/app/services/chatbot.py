@@ -15,6 +15,31 @@ class ChatbotService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    def _normalize_widget_config(self, widget_config: dict) -> dict:
+        """Normalize widget_config from camelCase to snake_case."""
+        normalized = {}
+        for key, value in widget_config.items():
+            if key == "primaryColor":
+                normalized["primary_color"] = value
+            elif key == "welcomeMessage":
+                normalized["welcome_message"] = value
+            else:
+                normalized[key] = value
+        return WidgetConfigSchema(**normalized).model_dump()
+
+    def _normalize_rag_config(self, rag_config: dict) -> dict:
+        """Validate and normalize rag_config using schema."""
+        return RagConfigSchema(**rag_config).model_dump()
+
+    def _apply_field_update(self, chatbot: Chatbot, field_name: str, value: any) -> None:
+        """Apply a single field update with normalization if needed."""
+        if field_name == "rag_config":
+            setattr(chatbot, field_name, self._normalize_rag_config(value))
+        elif field_name == "widget_config":
+            setattr(chatbot, field_name, self._normalize_widget_config(value))
+        else:
+            setattr(chatbot, field_name, value)
+
     async def get_chatbot_by_id(self, chatbot_id: str) -> Optional[Chatbot]:
         """
         透過內部 ID 取得機器人
@@ -64,30 +89,18 @@ class ChatbotService:
         logger.info(
             f"Creating chatbot - name: {data.name}, tenant_id: {data.tenant_id}")
 
-        # Normalize rag_config to snake_case using schema validation
-        if data.rag_config:
-            # Validate and normalize rag_config
-            rag_schema = RagConfigSchema(**data.rag_config)
-            rag_config_json = rag_schema.model_dump()
-        else:
-            rag_config_json = RagConfigSchema().model_dump()
+        # Normalize configs using helper methods
+        rag_config_json = (
+            self._normalize_rag_config(data.rag_config)
+            if data.rag_config
+            else RagConfigSchema().model_dump()
+        )
 
-        # Normalize widget_config to snake_case using schema validation
-        if data.widget_config:
-            # Convert camelCase keys to snake_case if present
-            normalized_widget = {}
-            for key, value in data.widget_config.items():
-                # Map camelCase to snake_case
-                if key == "primaryColor":
-                    normalized_widget["primary_color"] = value
-                elif key == "welcomeMessage":
-                    normalized_widget["welcome_message"] = value
-                else:
-                    normalized_widget[key] = value
-            widget_schema = WidgetConfigSchema(**normalized_widget)
-            widget_config_json = widget_schema.model_dump()
-        else:
-            widget_config_json = WidgetConfigSchema().model_dump()
+        widget_config_json = (
+            self._normalize_widget_config(data.widget_config)
+            if data.widget_config
+            else WidgetConfigSchema().model_dump()
+        )
 
         new_bot = Chatbot(
             tenant_id=data.tenant_id,
@@ -120,27 +133,19 @@ class ChatbotService:
         if not chatbot:
             return None
 
-        for k, v in fields.items():
-            if hasattr(chatbot, k) and v is not None:
-                # Normalize config fields to snake_case
-                if k == "rag_config":
-                    rag_schema = RagConfigSchema(**v)
-                    setattr(chatbot, k, rag_schema.model_dump())
-                elif k == "widget_config":
-                    # Convert camelCase to snake_case
-                    normalized_widget = {}
-                    for key, value in v.items():
-                        if key == "primaryColor":
-                            normalized_widget["primary_color"] = value
-                        elif key == "welcomeMessage":
-                            normalized_widget["welcome_message"] = value
-                        else:
-                            normalized_widget[key] = value
-                    widget_schema = WidgetConfigSchema(**normalized_widget)
-                    setattr(chatbot, k, widget_schema.model_dump())
-                else:
-                    setattr(chatbot, k, v)
+        # Apply field updates using helper method
+        for field_name, value in fields.items():
+            if self._should_update_field(chatbot, field_name, value):
+                self._apply_field_update(chatbot, field_name, value)
 
+        return await self._commit_update(chatbot, chatbot_id)
+
+    def _should_update_field(self, chatbot: Chatbot, field_name: str, value: any) -> bool:
+        """Check if a field should be updated."""
+        return hasattr(chatbot, field_name) and value is not None
+
+    async def _commit_update(self, chatbot: Chatbot, chatbot_id: str) -> Optional[Chatbot]:
+        """Commit chatbot update to database."""
         try:
             await self.db.commit()
             await self.db.refresh(chatbot)
@@ -148,13 +153,8 @@ class ChatbotService:
             return chatbot
         except Exception:
             logger.error(
-                f"Error updating chatbot: {chatbot_id}", exc_info=True)
-            await self.db.rollback()
-            return None
-            return chatbot
-        except Exception:
-            logger.error(
                 f"Error updating chatbot - id: {chatbot_id}", exc_info=True)
+            await self.db.rollback()
             return None
 
     async def delete_chatbot(self, chatbot_id: str) -> bool:
