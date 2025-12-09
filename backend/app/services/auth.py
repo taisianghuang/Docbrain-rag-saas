@@ -45,7 +45,7 @@ class AuthService:
             await self.repo.flush()  # Get tenant.id without commit
             # Save ID before commit (attributes expire after commit)
             tenant_id = new_tenant.id
-            logger.debug(f"Tenant created with id: {tenant_id}")
+            logger.debug("Tenant created with id: %s", tenant_id)
 
             # Step 2: Create Account (flush, don't commit)
             new_account = Account(
@@ -59,7 +59,7 @@ class AuthService:
             await self.repo.create_account(new_account)
             await self.repo.flush()  # Get account.id without commit
             account_id = new_account.id  # Save ID before commit
-            logger.debug(f"Account created with id: {account_id}")
+            logger.debug("Account created with id: %s", account_id)
 
             # Step 3: Create default Chatbot (flush, don't commit)
             default_bot = Chatbot(
@@ -75,15 +75,15 @@ class AuthService:
             await self.repo.create_chatbot(default_bot)
             await self.repo.flush()  # Get chatbot.id without commit
             chatbot_id = default_bot.id  # Save ID before commit
-            logger.debug(f"Chatbot created with id: {chatbot_id}")
+            logger.debug("Chatbot created with id: %s", chatbot_id)
 
             # Step 4: Single commit for all three entities (atomic transaction)
             await self.repo.commit()
             logger.info(
-                f"Registration committed (atomic) for email: {data.email}, tenant_id: {tenant_id}")
+                "Registration committed (atomic) for tenant_id: %s", tenant_id)
 
         except Exception as e:
-            logger.error(f"Registration failed: {str(e)}", exc_info=True)
+            logger.error("Registration failed: %s", str(e), exc_info=True)
             raise
 
         return {

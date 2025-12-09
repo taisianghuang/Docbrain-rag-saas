@@ -30,15 +30,13 @@ class ChatService:
         conversation_id: Optional[str] = None,
         visitor_id: Optional[str] = None
     ):
-        logger.debug(
-            f"Chat service: fetching chatbot with public_id: {public_id}")
+        logger.debug("Chat service: fetching chatbot by public_id")
         chatbot = await self.chatbot_service.get_chatbot_by_public_id(public_id)
         if not chatbot:
-            logger.warning(
-                f"Chat service: Invalid chatbot public_id: {public_id}")
+            logger.warning("Chat service: Invalid chatbot public_id")
             raise ValueError("Invalid Chatbot Public ID")
-        logger.debug(
-            f"Chat service: Chatbot found - id: {chatbot.id}, tenant_id: {chatbot.tenant_id}")
+        logger.debug("Chat service: Chatbot found - id: %s, tenant_id: %s",
+                     chatbot.id, chatbot.tenant_id)
 
         tenant_openai_key = None
         if chatbot.tenant and chatbot.tenant.encrypted_openai_key:
@@ -46,37 +44,35 @@ class ChatService:
                 chatbot.tenant.encrypted_openai_key)
 
         if not tenant_openai_key:
-            logger.error(
-                f"Chat service: Missing OpenAI key for chatbot - id: {chatbot.id}, tenant_id: {chatbot.tenant_id}")
+            logger.error("Chat service: Missing OpenAI key for chatbot - id: %s, tenant_id: %s",
+                         chatbot.id, chatbot.tenant_id)
             raise ValueError(
                 "Tenant OpenAI Key is missing. Please configure it in the dashboard.")
 
-        logger.debug(
-            f"Chat service: Processing conversation - conversation_id: {conversation_id}, visitor_id: {visitor_id}")
+        logger.debug("Chat service: Processing conversation")
         conversation = None
         if conversation_id:
             conversation = await self.conversation_repo.get_by_id(conversation_id)
 
         if not conversation:
             logger.debug(
-                f"Chat service: Creating new conversation for chatbot_id: {chatbot.id}")
+                "Chat service: Creating new conversation for chatbot_id: %s", chatbot.id)
             conversation = Conversation(
                 chatbot_id=chatbot.id, visitor_id=visitor_id)
             conversation = await self.conversation_repo.create(conversation)
-
-        logger.debug(
-            f"Chat service: Saving user message - conversation_id: {conversation.id}, query length: {len(user_query)}")
+        logger.debug("Chat service: Saving user message - conversation_id: %s, query length: %d",
+                     conversation.id, len(user_query))
         user_msg = Message(conversation_id=conversation.id,
                            role=MessageRole.USER, content=user_query)
         await self.conversation_repo.add_message(user_msg)
 
         logger.debug(
-            f"Chat service: Setting up RAG environment for chatbot_id: {chatbot.id}")
+            "Chat service: Setting up RAG environment for chatbot_id: %s", chatbot.id)
 
         rag_config = chatbot.rag_config or {}
         temperature = float(rag_config.get("temperature", 0.1))
-        logger.debug(
-            f"Chat service: RAG config - mode: {rag_config.get('mode')}, temperature: {temperature}")
+        logger.debug("Chat service: RAG config - mode: %s, temperature: %s",
+                     rag_config.get('mode'), temperature)
 
         llm = OpenAI(
             model=settings.OPENAI_CHAT_LLM_NAME or "gpt-4o-mini",
@@ -104,7 +100,7 @@ class ChatService:
         system_prompt = chatbot.widget_config.get(
             "system_prompt") or "You are a helpful AI."
 
-        logger.debug(f"Chat service: Creating chat engine with strategy")
+        logger.debug("Chat service: Creating chat engine with strategy")
         chat_engine = create_chat_engine(
             index=index,
             llm=llm,
@@ -113,16 +109,16 @@ class ChatService:
             rag_config=rag_config
         )
 
-        logger.debug(f"Chat service: Executing achat with user query")
+        logger.debug("Chat service: Executing achat with user query")
         response = await chat_engine.achat(user_query)
         response_text = str(response)
         logger.debug(
-            f"Chat service: Chat completed - response length: {len(response_text)}")
+            "Chat service: Chat completed - response length: %d", len(response_text))
 
         source_nodes = []
         if response.source_nodes:
-            logger.debug(
-                f"Chat service: Found {len(response.source_nodes)} source nodes")
+            logger.debug("Chat service: Found %d source nodes",
+                         len(response.source_nodes))
             for node in response.source_nodes:
                 source_nodes.append({
                     "document_id": node.metadata.get("document_id"),
@@ -130,9 +126,8 @@ class ChatService:
                     "score": node.score,
                     "text": (node.get_content()[:200] + "...") if node.get_content() else ""
                 })
-
         logger.debug(
-            f"Chat service: Saving assistant message - conversation_id: {conversation.id}")
+            "Chat service: Saving assistant message - conversation_id: %s", conversation.id)
         ai_msg = Message(
             conversation_id=conversation.id,
             role=MessageRole.ASSISTANT,
@@ -140,8 +135,8 @@ class ChatService:
             sources=source_nodes
         )
         await self.conversation_repo.add_message(ai_msg)
-        logger.info(
-            f"Chat service completed - conversation_id: {conversation.id}, source_nodes: {len(source_nodes)}")
+        logger.info("Chat service completed - conversation_id: %s, source_nodes: %d",
+                    conversation.id, len(source_nodes))
 
         return {
             "response": response_text,

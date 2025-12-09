@@ -203,7 +203,7 @@ export default function CreateChatbotPage() {
                   handleDeepChange(
                     "rag_config",
                     "top_k",
-                    parseInt(e.target.value)
+                    Number.parseInt(e.target.value)
                   )
                 }
               />
@@ -225,7 +225,7 @@ export default function CreateChatbotPage() {
                   handleDeepChange(
                     "rag_config",
                     "temperature",
-                    parseFloat(e.target.value)
+                    Number.parseFloat(e.target.value)
                   )
                 }
               />

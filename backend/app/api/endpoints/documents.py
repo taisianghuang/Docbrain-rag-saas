@@ -41,7 +41,7 @@ async def ingest_document(
         result = await ingestion_service.ingest_file(chatbot, file)
         logger.info(f"Document ingest successful - chunks: {result['chunks']}")
         return IngestResponse(**result)
-    except Exception as e:
+    except Exception:
         logger.error("Document ingest error", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

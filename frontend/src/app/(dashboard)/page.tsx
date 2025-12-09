@@ -92,12 +92,12 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="h-[300px] w-full flex items-end justify-between gap-2 px-4 pt-8">
-            {stats?.history.map((item, idx) => {
+            {stats?.history.map((item) => {
               // 簡單計算高度百分比，最高 100%
               const height = `${Math.min((item.value / 300) * 100, 100)}%`;
               return (
                 <div
-                  key={idx}
+                  key={item.date}
                   className="group relative flex flex-1 flex-col items-center gap-2">
                   <div
                     className="w-full rounded-t-md bg-primary/20 transition-all group-hover:bg-primary/40"

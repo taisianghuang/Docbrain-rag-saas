@@ -37,6 +37,8 @@ export function KnowledgeTab({ chatbotId, ragConfig }: KnowledgeTabProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const { data: documents, isLoading } = useQuery({
     queryKey: ["documents", chatbotId],
@@ -84,6 +86,14 @@ export function KnowledgeTab({ chatbotId, ragConfig }: KnowledgeTabProps) {
       setPendingFile(null);
     }
     setShowConfirmDialog(false);
+  };
+
+  const handleConfirmDelete = () => {
+    if (pendingDeleteId) {
+      deleteMutation.mutate(pendingDeleteId);
+      setPendingDeleteId(null);
+    }
+    setShowDeleteDialog(false);
   };
 
   return (
@@ -210,23 +220,49 @@ export function KnowledgeTab({ chatbotId, ragConfig }: KnowledgeTabProps) {
                   </div>
                 </div>
 
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-destructive"
-                  disabled={deleteMutation.isPending}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (
-                      confirm(
-                        "Are you sure you want to delete this document? It cannot be undone."
-                      )
-                    ) {
-                      deleteMutation.mutate(doc.id);
-                    }
-                  }}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive"
+                    disabled={deleteMutation.isPending}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPendingDeleteId(doc.id);
+                      setShowDeleteDialog(true);
+                    }}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+
+                  {/* Delete Confirmation Dialog */}
+                  <AlertDialog
+                    open={showDeleteDialog}
+                    onOpenChange={setShowDeleteDialog}>
+                    <AlertDialogContent className="max-w-md">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Document</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete this document? This
+                          action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="flex justify-end gap-3">
+                        <AlertDialogCancel
+                          onClick={() => {
+                            setPendingDeleteId(null);
+                            setShowDeleteDialog(false);
+                          }}>
+                          Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleConfirmDelete}
+                          className="bg-destructive text-white">
+                          Delete
+                        </AlertDialogAction>
+                      </div>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </>
               </div>
             ))}
           </div>

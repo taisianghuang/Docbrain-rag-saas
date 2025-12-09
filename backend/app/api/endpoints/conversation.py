@@ -35,7 +35,6 @@ async def chat(
         logger.warning("Chat validation error")
         # 通常是 Public ID 錯誤
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(
-            f"Chat error - public_id: {request.public_id}, error: {str(e)}", exc_info=True)
+    except Exception:
+        logger.error("Chat error", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")

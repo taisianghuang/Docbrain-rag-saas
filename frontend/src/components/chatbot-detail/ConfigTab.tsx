@@ -40,7 +40,7 @@ interface ConfigTabProps {
   chatbot: Chatbot;
 }
 
-export function ConfigTab({ chatbot }: ConfigTabProps) {
+export function ConfigTab({ chatbot }: Readonly<ConfigTabProps>) {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState<Chatbot>({
     ...chatbot,
@@ -225,14 +225,16 @@ export function ConfigTab({ chatbot }: ConfigTabProps) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Chunking</label>
+              <label htmlFor="chunking-select" className="text-sm font-medium">
+                Chunking
+              </label>
               <Select
                 disabled={Boolean(hasDocuments)}
                 value={formData.rag_config.chunking_strategy}
                 onValueChange={(val) =>
                   handleChange("rag_config", "chunking_strategy", val)
                 }>
-                <SelectTrigger>
+                <SelectTrigger id="chunking-select">
                   <SelectValue placeholder="Select strategy" />
                 </SelectTrigger>
                 <SelectContent>
@@ -249,13 +251,15 @@ export function ConfigTab({ chatbot }: ConfigTabProps) {
           <Separator />
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">LLM Model</label>
+            <label htmlFor="llm-model-select" className="text-sm font-medium">
+              LLM Model
+            </label>
             <Select
               value={formData.rag_config.llm_model || "gpt-4o-mini"}
               onValueChange={(val) =>
                 handleChange("rag_config", "llm_model", val)
               }>
-              <SelectTrigger>
+              <SelectTrigger id="llm-model-select">
                 <SelectValue placeholder="Select model" />
               </SelectTrigger>
               <SelectContent>
@@ -274,24 +278,30 @@ export function ConfigTab({ chatbot }: ConfigTabProps) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">
+              <label htmlFor="cfg-top-k" className="text-sm font-medium">
                 Top K Sources ({formData.rag_config.top_k})
               </label>
               <Input
+                id="cfg-top-k"
                 type="number"
                 min={1}
                 max={20}
                 value={formData.rag_config.top_k}
                 onChange={(e) =>
-                  handleChange("rag_config", "top_k", parseInt(e.target.value))
+                  handleChange(
+                    "rag_config",
+                    "top_k",
+                    Number.parseInt(e.target.value)
+                  )
                 }
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">
+              <label htmlFor="cfg-temperature" className="text-sm font-medium">
                 Temperature ({formData.rag_config.temperature})
               </label>
               <Input
+                id="cfg-temperature"
                 type="number"
                 step={0.1}
                 min={0}
@@ -301,7 +311,7 @@ export function ConfigTab({ chatbot }: ConfigTabProps) {
                   handleChange(
                     "rag_config",
                     "temperature",
-                    parseFloat(e.target.value)
+                    Number.parseFloat(e.target.value)
                   )
                 }
               />

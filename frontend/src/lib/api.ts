@@ -59,7 +59,7 @@ export const statsService = {
         
         // 模擬延遲
         await new Promise(resolve => setTimeout(resolve, 600));
-        
+
         return {
             chatbot_traffic: 12450,
             openai_usage: 45.20,
@@ -142,19 +142,15 @@ export const settingsService = {
 // Evaluation Services
 export const evaluationService = {
     list: async (_chatbotId: string): Promise<DeepEvalMetric[]> => {
-        // Mock Data
-        return [
-            { id: '1', query: 'What is the leave policy?', answer: '20 days paid leave.', faithfulness: 0.95, answer_relevance: 0.98, context_recall: 0.90, created_at: new Date().toISOString() },
-            { id: '2', query: 'How to restart server?', answer: 'Use systemctl restart.', faithfulness: 0.88, answer_relevance: 0.92, context_recall: 0.85, created_at: new Date().toISOString() },
-        ];
-        // 真實串接:
-        // const response = await api.get(`/chatbots/${_chatbotId}/evaluations`);
-        // return response.data;
+      // Mock Data for now — replace with real API when available
+      return [
+        { id: '1', query: 'What is the leave policy?', answer: '20 days paid leave.', faithfulness: 0.95, answer_relevance: 0.98, context_recall: 0.90, created_at: new Date().toISOString() },
+        { id: '2', query: 'How to restart server?', answer: 'Use systemctl restart.', faithfulness: 0.88, answer_relevance: 0.92, context_recall: 0.85, created_at: new Date().toISOString() },
+      ];
     },
     run: async (_chatbotId: string): Promise<void> => {
-        // Mock Run
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        // 真實串接: await api.post(`/chatbots/${_chatbotId}/evaluations/run`);
+      // Mock Run — replace with real API call when implemented
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
 };
 

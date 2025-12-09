@@ -176,10 +176,10 @@ class IngestionService:
                 "chunks": len(nodes)
             }
 
-        except Exception as e:
+        except Exception:
             # Log error without user-controlled data
-            logger.error(
-                f"Ingestion error for document_id: {db_doc.id}", exc_info=True)
+            logger.error("Ingestion error for document_id: %s",
+                         str(db_doc.id), exc_info=True)
 
             # Update status and clean up
             try:

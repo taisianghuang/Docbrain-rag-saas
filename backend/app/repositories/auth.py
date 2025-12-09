@@ -23,10 +23,12 @@ class AuthRepository:
 
     async def create_account(self, account: Account) -> Account:
         self.db.add(account)
+        await self.db.flush()
         return account
 
     async def create_chatbot(self, chatbot: Chatbot) -> Chatbot:
         self.db.add(chatbot)
+        await self.db.flush()
         return chatbot
 
     async def commit(self):

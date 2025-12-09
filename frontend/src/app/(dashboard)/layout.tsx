@@ -17,9 +17,9 @@ import { Button } from "@/components/ui/button";
 
 export default function DashboardLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   const { isAuthenticated, logout, isLoading } = useAuth();
   const { theme, setTheme } = useTheme();
   const pathname = usePathname();

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useMemo,
+} from "react";
 import { authService } from "@/lib/api";
 import { useRouter } from "next/navigation"; // 注意：用 next/navigation
 
@@ -50,12 +56,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     router.push("/login");
   };
 
-  return (
-    <AuthContext.Provider
-      value={{ token, isAuthenticated: !!token, login, logout, isLoading }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({ token, isAuthenticated: !!token, login, logout, isLoading }),
+    [token, isLoading]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
