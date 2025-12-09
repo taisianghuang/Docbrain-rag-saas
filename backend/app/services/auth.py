@@ -21,12 +21,11 @@ class AuthService:
         self.repo = repo
 
     async def register(self, data: SignupRequest) -> dict:
-        logger.debug(f"Starting registration process for email: {data.email}")
+        logger.debug("Starting registration process")
 
         existing = await self.repo.get_account_by_email(data.email)
         if existing:
-            logger.warning(
-                f"Registration failed - Email already registered: {data.email}")
+            logger.warning("Registration failed - Email already registered")
             raise ValueError("Email already registered")
 
         company_name = data.company_name or f"{data.email.split('@')[0]}'s Workspace"
@@ -95,20 +94,17 @@ class AuthService:
         }
 
     async def authenticate(self, email: str, password: str) -> Optional[dict]:
-        logger.debug(f"Authenticating user with email: {email}")
+        logger.debug("Authenticating user")
         account = await self.repo.get_account_by_email(email)
         if not account:
-            logger.warning(
-                f"Authentication failed - Account not found for email: {email}")
+            logger.warning("Authentication failed - Account not found")
             return None
         if not verify_password(password, account.hashed_password):
-            logger.warning(
-                f"Authentication failed - Invalid password for email: {email}")
+            logger.warning("Authentication failed - Invalid password")
             return None
 
         access_token = create_access_token(subject=account.id)
-        logger.info(
-            f"Authentication successful for email: {email}, account_id: {account.id}")
+        logger.info("Authentication successful")
 
         return {
             "access_token": access_token,

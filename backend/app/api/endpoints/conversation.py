@@ -18,8 +18,7 @@ async def chat(
     """
     Widget 對話 API
     """
-    logger.info(
-        f"Chat request received - public_id: {request.public_id}, conversation_id: {request.conversation_id}")
+    logger.info("Chat request received")
     try:
         result = await chat_service.chat(
             public_id=request.public_id,
@@ -28,13 +27,12 @@ async def chat(
             visitor_id=request.visitor_id
         )
         logger.info(
-            f"Chat successful - conversation_id: {result['conversation_id']}, sources: {len(result['source_nodes'])}")
+            f"Chat successful - sources: {len(result['source_nodes'])}")
 
         return ChatResponse(**result)
 
     except ValueError as e:
-        logger.warning(
-            f"Chat validation error - public_id: {request.public_id}, error: {str(e)}")
+        logger.warning("Chat validation error")
         # 通常是 Public ID 錯誤
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

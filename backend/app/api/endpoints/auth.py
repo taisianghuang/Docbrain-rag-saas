@@ -23,7 +23,7 @@ async def register(
     SaaS 公開註冊接口：
     輸入 Email/Password -> 自動建立 Tenant + Account + Default Bot
     """
-    logger.info(f"Register attempt for email: {data.email}")
+    logger.info("Register attempt received")
     # Run additional sign-up validations that can produce multiple messages
     errors: list[str] = []
 
@@ -50,8 +50,7 @@ async def register(
 
     if errors:
         # Return all validation messages together so client can display guidance
-        logger.warning(
-            f"Registration validation errors for {data.email}: {errors}")
+        logger.warning("Registration validation errors")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"errors": errors}
@@ -59,19 +58,16 @@ async def register(
 
     try:
         result = await auth_service.register(data)
-        logger.info(
-            f"Registration successful for email: {data.email}, account_id: {result['account_id']}, tenant_id: {result['tenant_id']}")
+        logger.info("Registration successful")
         return SignupResponse(**result)
     except ValueError as e:
-        logger.warning(
-            f"Registration validation error for email {data.email}: {str(e)}")
+        logger.warning(f"Registration validation error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
     except Exception as e:
-        logger.error(
-            f"Registration error for email {data.email}: {str(e)}", exc_info=True)
+        logger.error("Registration error", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Registration failed"

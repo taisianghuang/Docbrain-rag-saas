@@ -30,12 +30,8 @@ export default function RegisterPage() {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    // Client-side validation: mirror backend rules (min 8, contains upper/lower/digit, max 30)
+  const validatePasswordRequirements = (pw: string): string[] => {
     const errors: string[] = [];
-    const pw = formData.password || "";
     if (pw.length < 8)
       errors.push("Password must be at least 8 characters long.");
     if (pw.length > 30) errors.push("Password must be 30 characters or fewer.");
@@ -43,22 +39,57 @@ export default function RegisterPage() {
       errors.push("Password must contain at least one uppercase letter.");
     if (!/[a-z]/.test(pw))
       errors.push("Password must contain at least one lowercase letter.");
-    if (!/[0-9]/.test(pw))
+    if (!/\d/.test(pw))
       errors.push("Password must contain at least one digit.");
+    return errors;
+  };
+
+  const validateFormData = (): string[] => {
+    const errors: string[] = [];
+    const pw = formData.password || "";
+
+    errors.push(...validatePasswordRequirements(pw));
 
     if (formData.company_name && formData.company_name.length > 100) {
       errors.push("Company name must be 100 characters or fewer.");
     }
 
+    return errors;
+  };
+
+  const handleSubmitError = (err: unknown): string => {
+    let errorMessage = "Registration failed. Please try again.";
+
+    if (err instanceof AxiosError && err.response?.data?.detail) {
+      const detail = err.response.data.detail;
+      if (
+        detail &&
+        typeof detail === "object" &&
+        Array.isArray(detail.errors)
+      ) {
+        errorMessage = detail.errors.join(" \n");
+      } else {
+        errorMessage = String(detail);
+      }
+    } else if (err instanceof Error) {
+      errorMessage = err.message;
+    }
+
+    return errorMessage;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const errors = validateFormData();
     if (errors.length > 0) {
-      // Show all validation errors to user
       toast.error("Validation errors", { description: errors.join(" \n") });
       setLoading(false);
       return;
     }
 
     try {
-      // Convert empty API key strings to null before sending to backend
       const payload: SignupRequestType = {
         email: formData.email,
         password: formData.password,
@@ -73,34 +104,13 @@ export default function RegisterPage() {
         duration: 2000,
       });
 
-      // 延遲一下讓用戶看到成功訊息
       setTimeout(() => {
         router.push("/login");
       }, 1000);
     } catch (err) {
       console.error(err);
-      let errorMessage = "Registration failed. Please try again.";
-
-      // 3. 使用 instanceof 檢查是否為 Axios 錯誤
-      if (err instanceof AxiosError && err.response?.data?.detail) {
-        const detail = err.response.data.detail;
-        // If backend returned structured { errors: [...] }
-        if (
-          detail &&
-          typeof detail === "object" &&
-          Array.isArray(detail.errors)
-        ) {
-          errorMessage = detail.errors.join(" \n");
-        } else {
-          errorMessage = String(detail);
-        }
-      } else if (err instanceof Error) {
-        // 一般 JS 錯誤
-        errorMessage = err.message;
-      }
-      toast.error("Registration Error", {
-        description: errorMessage,
-      });
+      const errorMessage = handleSubmitError(err);
+      toast.error("Registration Error", { description: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -127,10 +137,13 @@ export default function RegisterPage() {
           {/* Basic Info Group */}
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium mb-1.5 block text-gray-700 dark:text-slate-300">
+              <label
+                htmlFor="email"
+                className="text-sm font-medium mb-1.5 block text-gray-700 dark:text-slate-300">
                 Email Address <span className="text-red-500">*</span>
               </label>
               <Input
+                id="email"
                 name="email"
                 type="email"
                 required
@@ -142,10 +155,13 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1.5 block text-gray-700 dark:text-slate-300">
+              <label
+                htmlFor="password"
+                className="text-sm font-medium mb-1.5 block text-gray-700 dark:text-slate-300">
                 Password <span className="text-red-500">*</span>
               </label>
               <Input
+                id="password"
                 name="password"
                 type="password"
                 required
@@ -159,10 +175,13 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1.5 block text-gray-700 dark:text-slate-300">
+              <label
+                htmlFor="company_name"
+                className="text-sm font-medium mb-1.5 block text-gray-700 dark:text-slate-300">
                 Company / Workspace Name
               </label>
               <Input
+                id="company_name"
                 name="company_name"
                 value={formData.company_name}
                 onChange={handleChange}
@@ -189,10 +208,13 @@ export default function RegisterPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-medium mb-1.5 block text-gray-600 dark:text-slate-400 flex items-center">
+                <label
+                  htmlFor="openai_key"
+                  className="text-xs font-medium mb-1.5 block text-gray-600 dark:text-slate-400">
                   OpenAI API Key
                 </label>
                 <Input
+                  id="openai_key"
                   name="openai_key"
                   type="password"
                   value={formData.openai_key}
@@ -202,10 +224,13 @@ export default function RegisterPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium mb-1.5 block text-gray-600 dark:text-slate-400 flex items-center">
+                <label
+                  htmlFor="llama_cloud_key"
+                  className="text-xs font-medium mb-1.5 block text-gray-600 dark:text-slate-400">
                   LlamaCloud Key (for Parsing)
                 </label>
                 <Input
+                  id="llama_cloud_key"
                   name="llama_cloud_key"
                   type="password"
                   value={formData.llama_cloud_key}
