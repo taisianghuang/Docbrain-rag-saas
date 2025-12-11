@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.models import Chatbot, Tenant
-from app.models.config_schemas import RagConfigSchema, WidgetConfigSchema
+from app.schemas.rag_config import RagConfigSchema, WidgetConfigSchema
 from app.schemas import ChatbotCreate
 
 logger = logging.getLogger(__name__)

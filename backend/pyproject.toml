@@ -25,6 +25,7 @@ dependencies = [
     "pydantic[email]>=2.12.4",
     "pypdf>=6.3.0",
     "pytest>=9.0.2",
+    "hypothesis>=6.78.5",
     "python-dotenv>=1.2.1",
     "python-jose[cryptography]>=3.5.0",
     "python-multipart>=0.0.20",
