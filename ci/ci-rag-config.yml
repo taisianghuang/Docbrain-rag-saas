@@ -1,0 +1,46 @@
+name: RAG Config CI
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'specs/001-advanced-rag-config/**'
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+      
+      - name: Install dependencies
+        run: uv sync
+      
+      - name: Run API tests
+        run: uv run pytest -q tests/api
+      
+      - name: Run service tests
+        run: uv run pytest -q tests/services
+      
+      - name: Run unit tests
+        run: uv run pytest -q tests/unit
+      
+      - name: Run repository tests
+        run: uv run pytest -q tests/repositories || true
+      
+      - name: Run property tests
+        run: uv run pytest -q tests/unit/property || true

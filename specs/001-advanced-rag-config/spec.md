@@ -5,6 +5,13 @@
 **Status**: Draft  
 **Input**: User description: "Advanced RAG Configuration System — enterprise-grade, highly configurable retrieval-augmented generation pipeline. Supports model selection, chunking strategies, hybrid retrieval, reranking, visual processing, and asynchronous ingestion via a message queue."                                                                                                                                  
 
+## Clarifications
+
+### Session 2025-12-11
+
+- Q: Which message-queue technology should we standardize on for ingestion (Kafka, Redis Streams, RabbitMQ, other)? → A: Defer queue infra decision to a follow-up spec (Spec2). For this feature (`advanced-rag-config`) implement a pluggable queue adapter abstraction and focus on functional RAG configuration, validation, and API flows. Concrete infra (Kafka/Redis/etc.) will be decided in Spec2.
+
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
@@ -129,6 +136,7 @@ If any part of this spec is unclear or you want different priorities, I can revi
 ## Dependencies & Assumptions
 
 - **Message queue availability**: An asynchronous message queue service is available and operated by the platform to support ingestion scaling.
+ - **Message queue availability**: DEFERRED to `Spec2` — the specific choice of queue technology (Kafka, Redis Streams, RabbitMQ, etc.) will be decided in a subsequent specification. For `advanced-rag-config` assume a pluggable queue adapter interface exists; implementations may be in-memory/Redis for dev and Kafka for production. Do not lock core design to a single queue implementation.
 - **Searchable index**: A searchable index or vector index service exists for storing embeddings/chunks; the spec assumes it supports efficient top-k retrieval and metadata filtering.
 - **Model provider credentials**: Tenants supply valid credentials/keys for any external model providers they choose to use; the system validates keys before saving.
 - **Tenant isolation**: Tenant data and secrets are isolated and encrypted per-tenant.
