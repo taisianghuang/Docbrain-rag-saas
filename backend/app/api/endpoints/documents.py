@@ -7,6 +7,7 @@ from app.services.ingestion import IngestionService
 from app.services.chatbot import ChatbotService
 from app.schemas import IngestResponse
 from app.repositories.document import DocumentRepository
+from app.processing.producer import ProcessingProducer
 
 router = APIRouter()
 
@@ -20,6 +21,8 @@ async def ingest_document(
     ingestion_service: IngestionService = Depends(deps.get_ingestion_service),
     chatbot_service: ChatbotService = Depends(
         deps.get_chatbot_service),  # 注入 ChatbotService
+    processing_producer: ProcessingProducer = Depends(
+        deps.get_processing_producer),
 ) -> Any:
     """
     SaaS 核心功能：上傳文件並進行 RAG 索引。
@@ -36,12 +39,26 @@ async def ingest_document(
         )
     logger.debug("Document ingest - Chatbot verified")
 
-    # 2. 呼叫 Service 進行處理 (IngestionService 已經寫好會處理 Key 和 Metadata)
+    # 2. 先建立 ProcessingTask（隊列抽象，實際隊列在 Spec2 定義）
+    task = await processing_producer.enqueue_document(
+        chatbot_id=chatbot_id,
+        document_id=None,
+        payload={"filename": file.filename},
+        priority=5,
+    )
+
+    # 3. 呼叫 Service 進行處理 (目前仍同步，後續可由 Consumer 觸發)
     try:
         result = await ingestion_service.ingest_file(chatbot, file)
+        await processing_producer.task_repo.update_status(
+            task_id=str(task.id), status="completed", document_id=result["document_id"]
+        )
         logger.info(f"Document ingest successful - chunks: {result['chunks']}")
         return IngestResponse(**result)
     except Exception:
+        await processing_producer.task_repo.update_status(
+            task_id=str(task.id), status="failed", error_message="ingestion_failed"
+        )
         logger.error("Document ingest error", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

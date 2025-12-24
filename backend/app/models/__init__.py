@@ -5,6 +5,7 @@ from app.models.document import Document, LlamaIndexStore
 from app.models.conversation import Conversation, Message, MessageRole
 from app.models.account import Account
 from app.models.rag_config import RagConfig
+from app.models.processing_task import ProcessingTask
 
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "MessageRole",
     "Account",
     "RagConfig",
+    "ProcessingTask",
 ]

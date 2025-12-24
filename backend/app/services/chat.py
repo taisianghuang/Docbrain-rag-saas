@@ -13,7 +13,7 @@ from app.core.config import settings
 from app.core.security import decrypt_value
 from app.services.chatbot import ChatbotService
 from app.repositories.conversation import ConversationRepository
-from app.core.rag_strategies import create_chat_engine
+from app.core.strategies import create_chat_engine
 
 logger = logging.getLogger(__name__)
 

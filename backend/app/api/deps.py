@@ -23,6 +23,10 @@ from app.repositories.account import AccountRepository
 from app.repositories.tenant import TenantRepository
 from app.repositories.conversation import ConversationRepository
 from app.repositories.auth import AuthRepository
+from app.repositories.processing_task import ProcessingTaskRepository
+
+# Processing queue (adapter is deferred to Spec2; producer uses repo only for now)
+from app.processing.producer import ProcessingProducer
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -81,6 +85,18 @@ def get_tenant_repository(db: AsyncSession = Depends(get_db)) -> TenantRepositor
 
 def get_conversation_repository(db: AsyncSession = Depends(get_db)) -> ConversationRepository:
     return ConversationRepository(db)
+
+
+def get_processing_task_repository(db: AsyncSession = Depends(get_db)) -> ProcessingTaskRepository:
+    return ProcessingTaskRepository(db)
+
+
+def get_processing_producer(
+    task_repo: ProcessingTaskRepository = Depends(
+        get_processing_task_repository)
+) -> ProcessingProducer:
+    # Queue adapter is deferred to Spec2; producer will persist tasks only.
+    return ProcessingProducer(task_repo=task_repo)
 
 
 # --- Auth Dependency (現在只負責呼叫 Service 並轉換 Exception) ---
