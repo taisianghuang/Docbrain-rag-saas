@@ -24,6 +24,10 @@ from app.repositories.tenant import TenantRepository
 from app.repositories.conversation import ConversationRepository
 from app.repositories.auth import AuthRepository
 from app.repositories.processing_task import ProcessingTaskRepository
+from app.repositories.rag_config import RAGConfigRepository
+
+# Managers
+from app.services.rag_config_manager import RAGConfigManager
 
 # Processing queue (adapter is deferred to Spec2; producer uses repo only for now)
 from app.processing.producer import ProcessingProducer
@@ -97,6 +101,12 @@ def get_processing_producer(
 ) -> ProcessingProducer:
     # Queue adapter is deferred to Spec2; producer will persist tasks only.
     return ProcessingProducer(task_repo=task_repo)
+
+
+def get_rag_config_manager(db: AsyncSession = Depends(get_db)) -> RAGConfigManager:
+    """Provide RAGConfigManager wired to DB-backed repository."""
+    repo = RAGConfigRepository(db)
+    return RAGConfigManager(repository=repo)
 
 
 # --- Auth Dependency (現在只負責呼叫 Service 並轉換 Exception) ---
