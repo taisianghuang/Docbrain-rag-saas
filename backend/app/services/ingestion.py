@@ -13,9 +13,9 @@ from llama_parse import LlamaParse
 from llama_index.core import Document as LlamaDocument, StorageContext, VectorStoreIndex
 
 from app.models import Document as DBDocument, Chatbot
-from app.core.rag_factory import get_vector_store
+from app.db.rag_factory import get_vector_store
 from app.core.security import decrypt_value
-from app.core.chunking_strategies import get_nodes_from_strategy  # <--- 新增 import
+from app.core.strategies import get_nodes_from_strategy
 
 logger = logging.getLogger(__name__)
 

@@ -31,3 +31,7 @@ dependencies = [
     "sentry-sdk>=2.46.0",
     "uvicorn[standard]>=0.38.0",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

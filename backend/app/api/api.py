@@ -1,6 +1,6 @@
 # backend/app/api/api.py
 from fastapi import APIRouter
-from app.api.endpoints import conversation, documents, health, auth, chatbots, settings
+from app.api.endpoints import conversation, documents, health, auth, chatbots, settings, rag_config
 
 api_router = APIRouter()
 
@@ -43,4 +43,11 @@ api_router.include_router(
     settings.router,
     prefix="/settings",
     tags=["settings"]
+)
+
+# 註冊 RAG Config API
+api_router.include_router(
+    rag_config.router,
+    prefix="/rag-config",
+    tags=["rag-config"]
 )
